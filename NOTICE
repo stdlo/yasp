@@ -1,0 +1,24 @@
+Remotely Save Lite
+Copyright 2026 stdlo
+
+This product is a fork of Remotely Save
+(https://github.com/remotely-save/remotely-save), by fyears and its
+contributors, released under the Apache License, Version 2.0. It was
+taken from version 0.5.25 (commit 34db181).
+
+What this fork changed:
+
+- Removed the source-available `pro/` folder and everything that used
+  it: the paid account, Smart Conflict, file content history, and the
+  paid backends.
+- Restored the sync engine (`src/sync.ts`) from upstream's
+  Apache-2.0 history, before it moved into `pro/`, without its paid
+  hooks.
+- Kept only the Dropbox backend; removed S3, WebDAV, Webdis, and
+  OneDrive.
+- Gave the plugin its own id, name, database, protocol actions, and
+  Dropbox redirect, so it installs beside upstream.
+- Replaced Biome with oxlint and oxfmt, and added tests for the sync
+  plan decisions.
+
+Each changed source file says what changed in a comment at its top.
