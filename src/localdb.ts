@@ -498,6 +498,48 @@ export const clearAllPrevSyncRecordByVault = async (
   await db.prevSyncRecordsTbl.removeItems(keys)
 }
 
+/**
+ * Moves the previous-sync records and sync bases of one profile to another
+ * (or to the same one), each path through `mapKey`; a path it maps to
+ * undefined stays where it was. For the move to profile ids per remote, and
+ * a routed folder's rename.
+ */
+export const moveProfileRecords = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  fromProfile: string,
+  toProfile: string,
+  mapKey: (key: string) => string | undefined = (key) => key,
+) => {
+  const prefix = `${vaultRandomID}\t${fromProfile}\t`
+  let moved = 0
+  for (const tbl of [db.prevSyncRecordsTbl, db.syncBasesTbl]) {
+    for (const dbKey of await tbl.keys()) {
+      if (!dbKey.startsWith(prefix)) {
+        continue
+      }
+      const key = dbKey.slice(prefix.length)
+      const newKey = mapKey(key)
+      if (
+        newKey === undefined ||
+        (newKey === key && fromProfile === toProfile)
+      ) {
+        continue
+      }
+      const val: any = await tbl.getItem(dbKey)
+      if (val !== null && typeof val === 'object' && 'key' in val) {
+        // a previous-sync record names its own path
+        val.key = newKey
+        val.keyRaw = newKey
+      }
+      await tbl.setItem(`${vaultRandomID}\t${toProfile}\t${newKey}`, val)
+      await tbl.removeItem(dbKey)
+      moved += 1
+    }
+  }
+  return moved
+}
+
 export const getSyncBaseByVaultAndProfile = async (
   db: InternalDBs,
   vaultRandomID: string,

@@ -5,6 +5,7 @@
  */
 
 import type { LangTypeAndAuto } from './i18n'
+import type { RouteTable } from './routes'
 
 declare global {
   var DEFAULT_DROPBOX_APP_KEY: string
@@ -18,7 +19,39 @@ export const DEFAULT_CONTENT_TYPE = 'application/octet-stream'
  * The remote services this plugin syncs with. A new one is a member here,
  * its own `fs<Name>.ts` (a FakeFs), and its own part of the settings tab.
  */
-export type SUPPORTED_SERVICES_TYPE = 'dropbox'
+export type SUPPORTED_SERVICES_TYPE = 'dropbox' | 'github'
+
+export interface GithubConfig {
+  owner: string
+  repo: string
+  branch: string
+  /** a fine-grained personal access token for this one repo */
+  token: string
+  /** an optional folder inside the repo the vault syncs under */
+  folder?: string
+}
+
+/**
+ * One remote of several. Each run syncs with one, under the profile id
+ * `remote-<id>`. A per-remote setting left undefined falls back to the
+ * top-level one, so the remote migrated from a single-remote setup syncs
+ * exactly as before.
+ */
+export interface RemoteConfig {
+  id: string
+  name: string
+  type: SUPPORTED_SERVICES_TYPE
+  enabled: boolean
+  dropbox?: DropboxConfig
+  github?: GithubConfig
+  password?: string
+  encryptionMethod?: CipherMethodType
+  concurrency?: number
+  syncDirection?: SyncDirectionType
+  conflictAction?: ConflictActionType
+  protectModifyPercentage?: number
+  syncConfigDir?: boolean
+}
 
 export interface DropboxConfig {
   accessToken: string
@@ -78,6 +111,13 @@ export interface RemotelySavePluginSettings {
   encryptionMethod?: CipherMethodType
 
   profiler?: ProfilerConfig
+
+  /** the remotes, in the order their runs go */
+  remotes?: RemoteConfig[]
+  /** the route table: `docs/design.md`, "How folders route" */
+  routes?: RouteTable
+  /** when this device's table last changed, against the ownership files */
+  routesUpdatedAt?: number
 
   /**
    * @deprecated

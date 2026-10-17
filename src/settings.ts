@@ -183,12 +183,13 @@ class EncryptionMethodModal extends Modal {
 export class ChangeRemoteBaseDirModal extends Modal {
   readonly plugin: RemotelySavePlugin
   readonly newRemoteBaseDir: string
-  readonly service: SUPPORTED_SERVICES_TYPE
+  // the services with a base folder setting (a GitHub remote's is its folder)
+  readonly service: 'dropbox'
   constructor(
     app: App,
     plugin: RemotelySavePlugin,
     newRemoteBaseDir: string,
-    service: SUPPORTED_SERVICES_TYPE,
+    service: 'dropbox',
   ) {
     super(app)
     this.plugin = plugin

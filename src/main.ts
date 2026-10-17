@@ -43,12 +43,19 @@ import {
   clearExpiredSyncPlanRecords,
   getLastFailedSyncTimeByVault,
   getLastSuccessSyncTimeByVault,
+  moveProfileRecords,
   prepareDBs,
   upsertLastFailedSyncTimeByVault,
   upsertLastSuccessSyncTimeByVault,
   upsertPluginVersionByVault,
 } from './localdb'
 import { changeMobileStatusBar } from './misc'
+import {
+  LEGACY_PROFILE_ID,
+  linkDropboxConfig,
+  migrateToRemotes,
+  profileIdOf,
+} from './remotes'
 import { DEFAULT_PROFILER_CONFIG, Profiler } from './profiler'
 import { RemotelySaveSettingTab } from './settings'
 import { syncer } from './sync'
@@ -191,7 +198,7 @@ export default class RemotelySavePlugin extends Plugin {
       return this.i18n.t(x, vars)
     }
 
-    const profileID = this.getCurrProfileID()
+    const profileID = profileIdOf(this.settings.remotes![0])
 
     const getProtectError = (
       protectModifyPercentage: number,
@@ -508,6 +515,17 @@ export default class RemotelySavePlugin extends Plugin {
         10 * 1000,
       )
       throw err
+    }
+
+    // must AFTER preparing DB: every load, so a load cut short still moves them
+    const migrated = this.settings.remotes?.find((r) => r.id === 'dropbox')
+    if (migrated !== undefined) {
+      await moveProfileRecords(
+        this.db,
+        this.vaultRandomID,
+        LEGACY_PROFILE_ID,
+        profileIdOf(migrated),
+      )
     }
 
     // must AFTER preparing DB
@@ -898,6 +916,11 @@ export default class RemotelySavePlugin extends Plugin {
     if (this.settings.profiler.recordSize === undefined) {
       this.settings.profiler.recordSize = false
     }
+
+    // A single-remote setup becomes the remote `dropbox`, `default → dropbox`;
+    // its records move to that remote's profile once the database is open.
+    migrateToRemotes(this.settings)
+    linkDropboxConfig(this.settings)
 
     await this.saveSettings()
   }
