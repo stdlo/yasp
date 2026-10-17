@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed
+// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed, its own name and protocol action
 import { Eye, EyeOff, createElement } from "lucide";
 import {
   type App,
@@ -17,6 +17,7 @@ import type {
   SUPPORTED_SERVICES_TYPE,
   SyncDirectionType,
 } from "./baseTypes";
+import { COMMAND_URI } from "./baseTypes";
 
 import cloneDeep from "lodash/cloneDeep";
 import { messyConfigToNormal } from "./configPersist";
@@ -596,7 +597,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       return this.plugin.i18n.t(x, vars);
     };
 
-    containerEl.createEl("h1", { text: "Remotely Save" });
+    containerEl.createEl("h1", { text: this.plugin.manifest.name });
 
     //////////////////////////////////////////////////
     // below for service chooser (part 1/2)
@@ -1315,7 +1316,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       .setDesc(t("settings_import_desc"))
       .addText((text) =>
         text
-          .setPlaceholder("obsidian://remotely-save?func=settings&...")
+          .setPlaceholder(`obsidian://${COMMAND_URI}?func=settings&...`)
           .setValue("")
           .onChange((val) => {
             importSettingVal = val;

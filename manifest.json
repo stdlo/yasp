@@ -1,11 +1,10 @@
 {
-  "id": "remotely-save",
-  "name": "Remotely Save",
-  "version": "0.5.25",
+  "id": "remotely-save-lite",
+  "name": "Remotely Save Lite",
+  "version": "0.6.0",
   "minAppVersion": "0.13.21",
-  "description": "Yet another unofficial plugin allowing users to synchronize notes between local device and the cloud service.",
-  "author": "fyears",
-  "authorUrl": "https://github.com/fyears",
-  "isDesktopOnly": false,
-  "fundingUrl": "https://remotelysave.com"
+  "description": "Sync your vault with Dropbox. A free fork of Remotely Save 0.5.25.",
+  "author": "stdlo",
+  "authorUrl": "https://github.com/stdlo",
+  "isDesktopOnly": false
 }
