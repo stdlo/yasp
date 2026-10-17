@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids
 // biome-ignore lint/suspicious/noShadowRestrictedNames: <explanation>
 import AggregateError from "aggregate-error";
 import cloneDeep from "lodash/cloneDeep";
@@ -62,7 +63,6 @@ import {
   sendAuthReq as sendAuthReqYandexDisk,
   setConfigBySuccessfullAuthInplace as setConfigBySuccessfullAuthInplaceYandexDisk,
 } from "../pro/src/fsYandexDisk";
-import { syncer } from "../pro/src/sync";
 import type {
   RemotelySavePluginSettings,
   SyncTriggerSourceType,
@@ -110,6 +110,7 @@ import {
 import { changeMobileStatusBar } from "./misc";
 import { DEFAULT_PROFILER_CONFIG, Profiler } from "./profiler";
 import { RemotelySaveSettingTab } from "./settings";
+import { syncer } from "./sync";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 
 const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
@@ -135,13 +136,11 @@ const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
   agreeToUploadExtraMetadata: true, // as of 20240106, it's safe to assume every new user agrees with this
   concurrency: 5,
   syncConfigDir: false,
-  syncBookmarks: false,
   syncUnderscoreItems: false,
   lang: "auto",
   logToDB: false,
   skipSizeLargerThan: -1,
   ignorePaths: [],
-  onlyAllowPaths: [],
   enableStatusBarInfo: true,
   deleteToWhere: "system",
   agreeToUseSyncV3: false,
@@ -243,7 +242,6 @@ export default class RemotelySavePlugin extends Plugin {
     const fsLocal = new FakeFsLocal(
       this.app.vault,
       this.settings.syncConfigDir ?? false,
-      this.settings.syncBookmarks ?? false,
       this.app.vault.configDir,
       this.manifest.id,
       profiler,
@@ -449,8 +447,8 @@ export default class RemotelySavePlugin extends Plugin {
       this.isSyncing = isSyncing;
     };
 
+    // The engine reports progress without the trigger source; it's this run's.
     const callbackSyncProcess = async (
-      s: SyncTriggerSourceType,
       realCounter: number,
       realTotalCount: number,
       pathName: string,
@@ -458,12 +456,11 @@ export default class RemotelySavePlugin extends Plugin {
     ) => {
       this.setCurrSyncMsg(
         t,
-        s,
+        triggerSource,
         realCounter,
         realTotalCount,
         pathName,
-        decision,
-        triggerSource
+        decision
       );
     };
 
@@ -483,8 +480,6 @@ export default class RemotelySavePlugin extends Plugin {
       return;
     }
 
-    const configSaver = async () => await this.saveSettings();
-
     await syncer(
       fsLocal,
       fsRemote,
@@ -496,8 +491,6 @@ export default class RemotelySavePlugin extends Plugin {
       this.vaultRandomID,
       this.app.vault.configDir,
       this.settings,
-      this.manifest.version,
-      configSaver,
       getProtectError,
       markIsSyncingFunc,
       notifyFunc,
@@ -1342,10 +1335,6 @@ export default class RemotelySavePlugin extends Plugin {
       messyConfigToNormal(await this.loadData())
     );
 
-    if (this.settings.syncBookmarks === undefined) {
-      this.settings.syncBookmarks = false;
-    }
-
     if (this.settings.dropbox.clientID === "") {
       this.settings.dropbox.clientID = DEFAULT_SETTINGS.dropbox.clientID;
     }
@@ -1412,9 +1401,6 @@ export default class RemotelySavePlugin extends Plugin {
     if (this.settings.ignorePaths === undefined) {
       this.settings.ignorePaths = [];
     }
-    if (this.settings.onlyAllowPaths === undefined) {
-      this.settings.onlyAllowPaths = [];
-    }
     if (this.settings.enableStatusBarInfo === undefined) {
       this.settings.enableStatusBarInfo = true;
     }
@@ -1433,7 +1419,12 @@ export default class RemotelySavePlugin extends Plugin {
     if (this.settings.agreeToUseSyncV3 === undefined) {
       this.settings.agreeToUseSyncV3 = false;
     }
-    if (this.settings.conflictAction === undefined) {
+    // Settings from upstream may name a paid choice the free engine doesn't
+    // have; it would leave a conflict undecided, so they fall back.
+    if (
+      this.settings.conflictAction !== "keep_newer" &&
+      this.settings.conflictAction !== "keep_larger"
+    ) {
       this.settings.conflictAction = "keep_newer";
     }
     if (this.settings.howToCleanEmptyFolder === undefined) {
@@ -1442,7 +1433,14 @@ export default class RemotelySavePlugin extends Plugin {
     if (this.settings.protectModifyPercentage === undefined) {
       this.settings.protectModifyPercentage = 50;
     }
-    if (this.settings.syncDirection === undefined) {
+    // Upstream's paid "and delete" directions fall back to their incremental
+    // forms, which never delete, rather than to a full two-way sync.
+    const syncDirection: string | undefined = this.settings.syncDirection;
+    if (syncDirection === "incremental_pull_and_delete_only") {
+      this.settings.syncDirection = "incremental_pull_only";
+    } else if (syncDirection === "incremental_push_and_delete_only") {
+      this.settings.syncDirection = "incremental_push_only";
+    } else if (syncDirection === undefined) {
       this.settings.syncDirection = "bidirectional";
     }
 
@@ -1902,7 +1900,6 @@ export default class RemotelySavePlugin extends Plugin {
                 const fsLocal = new FakeFsLocal(
                   this.app.vault,
                   this.settings.syncConfigDir ?? false,
-                  this.settings.syncBookmarks ?? false,
                   this.app.vault.configDir,
                   this.manifest.id,
                   undefined,
@@ -1928,8 +1925,7 @@ export default class RemotelySavePlugin extends Plugin {
     i: number,
     totalCount: number,
     pathName: string,
-    decision: string,
-    triggerSource: SyncTriggerSourceType
+    decision: string
   ) {
     const L = `${totalCount}`.length;
     const iStr = `${i}`.padStart(L, "0");
@@ -1937,7 +1933,7 @@ export default class RemotelySavePlugin extends Plugin {
     const shortMsg = prefix + `Syncing ${iStr}/${totalCount}`;
     const longMsg =
       prefix +
-      `Syncing progress=${iStr}/${totalCount},decision=${decision},path=${pathName},source=${triggerSource}`;
+      `Syncing progress=${iStr}/${totalCount},decision=${decision},path=${pathName},source=${s}`;
     this.currSyncMsg = longMsg;
 
     if (this.statusBarElement !== undefined) {

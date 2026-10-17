@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): no file content history, sync plan type from the restored engine
 import localforage from "localforage";
 import { extendPrototype as ep1 } from "localforage-getitems";
 import { extendPrototype as ep2 } from "localforage-removeitems";
@@ -6,9 +7,9 @@ ep2(localforage);
 export type LocalForage = typeof localforage;
 import { nanoid } from "nanoid";
 
-import type { SyncPlanType } from "../pro/src/sync";
 import type { Entity, SUPPORTED_SERVICES_TYPE } from "./baseTypes";
 import { unixTimeToStr } from "./misc";
+import type { SyncPlanType } from "./sync";
 
 const DB_VERSION_NUMBER_IN_HISTORY = [20211114, 20220108, 20220326, 20240220];
 export const DEFAULT_DB_VERSION_NUMBER: number = 20240220;
@@ -20,7 +21,6 @@ export const DEFAULT_TBL_LOGGER_OUTPUT = "loggeroutput";
 export const DEFAULT_TBL_SIMPLE_KV_FOR_MISC = "simplekvformisc";
 export const DEFAULT_TBL_PREV_SYNC_RECORDS = "prevsyncrecords";
 export const DEFAULT_TBL_PROFILER_RESULTS = "profilerresults";
-export const DEFAULT_TBL_FILE_CONTENT_HISTORY = "filecontenthistory";
 
 /**
  * @deprecated
@@ -63,7 +63,6 @@ export interface InternalDBs {
   simpleKVForMiscTbl: LocalForage;
   prevSyncRecordsTbl: LocalForage;
   profilerResultsTbl: LocalForage;
-  fileContentHistoryTbl: LocalForage;
 
   /**
    * @deprecated
@@ -222,11 +221,6 @@ export const prepareDBs = async (
     syncMappingTbl: localforage.createInstance({
       name: DEFAULT_DB_NAME,
       storeName: DEFAULT_TBL_SYNC_MAPPING,
-    }),
-
-    fileContentHistoryTbl: localforage.createInstance({
-      name: DEFAULT_DB_NAME,
-      storeName: DEFAULT_TBL_FILE_CONTENT_HISTORY,
     }),
   } as InternalDBs;
 

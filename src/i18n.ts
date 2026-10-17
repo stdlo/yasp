@@ -1,11 +1,8 @@
-import merge from "lodash/merge";
+// Changed for Remotely Save Lite (2026): only the Apache strings, no paid ones
 import Mustache from "mustache";
 import { moment } from "obsidian";
 
-import { LANGS as LANGS_PRO } from "../pro/src/langs";
-import { LANGS as LANGS_BASIC } from "./langs";
-
-const LANGS = merge(LANGS_BASIC, LANGS_PRO);
+import { LANGS } from "./langs";
 
 export type LangType = keyof typeof LANGS;
 export type LangTypeAndAuto = LangType | "auto";

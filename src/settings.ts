@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed
 import { Eye, EyeOff, createElement } from "lucide";
 import {
   type App,
@@ -23,7 +24,6 @@ import type {
 import cloneDeep from "lodash/cloneDeep";
 import { generateAzureBlobStorageSettingsPart } from "../pro/src/settingsAzureBlobStorage";
 import { generateBoxSettingsPart } from "../pro/src/settingsBox";
-import { generateClearDupFilesSettingsPart } from "../pro/src/settingsClearDupFiles";
 import { generateGoogleDriveSettingsPart } from "../pro/src/settingsGoogleDrive";
 import { generateKoofrSettingsPart } from "../pro/src/settingsKoofr";
 import { generateOnedriveFullSettingsPart } from "../pro/src/settingsOnedriveFull";
@@ -2247,27 +2247,6 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
         textArea.inputEl.addClass("ignorepaths-textarea");
       });
 
-    new Setting(basicDiv)
-      .setName(t("settings_onlyallowpaths"))
-      .setDesc(t("settings_onlyallowpaths_desc"))
-      .setClass("onlyallowpaths-settings")
-
-      .addTextArea((textArea) => {
-        textArea
-          .setValue(`${(this.plugin.settings.onlyAllowPaths ?? []).join("\n")}`)
-          .onChange(async (value) => {
-            this.plugin.settings.onlyAllowPaths = value
-              .trim()
-              .split("\n")
-              .filter((x) => x.trim() !== "");
-            await this.plugin.saveSettings();
-          });
-        textArea.inputEl.rows = 10;
-        textArea.inputEl.cols = 30;
-
-        textArea.inputEl.addClass("onlyallowpaths-textarea");
-      });
-
     //////////////////////////////////////////////////
     // below for advanced settings
     //////////////////////////////////////////////////
@@ -2347,27 +2326,6 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       });
 
     new Setting(advDiv)
-      .setName(t("settings_bookmarks"))
-      .setDesc(
-        t("settings_bookmarks_desc", {
-          configDir: this.app.vault.configDir,
-        })
-      )
-      .addDropdown((dropdown) => {
-        dropdown.addOption("disable", t("disable"));
-        dropdown.addOption("enable", t("enable"));
-
-        dropdown
-          .setValue(
-            `${this.plugin.settings.syncBookmarks ? "enable" : "disable"}`
-          )
-          .onChange(async (val) => {
-            this.plugin.settings.syncBookmarks = val === "enable";
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(advDiv)
       .setName(t("settings_deletetowhere"))
       .setDesc(t("settings_deletetowhere_desc"))
       .addDropdown((dropdown) => {
@@ -2384,46 +2342,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
           });
       });
 
-    let conflictActionSettingOrigDesc = t("settings_conflictaction_desc");
-    if (
-      (this.plugin.settings.conflictAction ?? "keep_newer") === "smart_conflict"
-    ) {
-      conflictActionSettingOrigDesc += t(
-        "settings_conflictaction_smart_conflict_desc"
-      );
-    }
-    const conflictActionSetting = new Setting(advDiv)
+    // TODO(smart-conflict): offer smart conflict here once it's rebuilt.
+    new Setting(advDiv)
       .setName(t("settings_conflictaction"))
-      .setDesc(stringToFragment(conflictActionSettingOrigDesc));
-    conflictActionSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("keep_newer", t("settings_conflictaction_keep_newer"))
-        .addOption("keep_larger", t("settings_conflictaction_keep_larger"))
-        .addOption(
-          "smart_conflict",
-          t("settings_conflictaction_smart_conflict")
-        )
-        .setValue(this.plugin.settings.conflictAction ?? "keep_newer")
-        .onChange(async (val) => {
-          this.plugin.settings.conflictAction = val as ConflictActionType;
-          await this.plugin.saveSettings();
-
-          conflictActionSettingOrigDesc = t("settings_conflictaction_desc");
-          if (
-            (this.plugin.settings.conflictAction ?? "keep_newer") ===
-            "smart_conflict"
-          ) {
-            conflictActionSettingOrigDesc += t(
-              "settings_conflictaction_smart_conflict_desc"
-            );
-          }
-          conflictActionSetting.setDesc(
-            stringToFragment(conflictActionSettingOrigDesc)
-          );
-        });
-    });
-
-    generateClearDupFilesSettingsPart(advDiv, t, this.app, this.plugin);
+      .setDesc(stringToFragment(t("settings_conflictaction_desc")))
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("keep_newer", t("settings_conflictaction_keep_newer"))
+          .addOption("keep_larger", t("settings_conflictaction_keep_larger"))
+          .setValue(this.plugin.settings.conflictAction ?? "keep_newer")
+          .onChange(async (val) => {
+            this.plugin.settings.conflictAction = val as ConflictActionType;
+            await this.plugin.saveSettings();
+          });
+      });
 
     const percentage1 = new Setting(advDiv)
       .setName(t("settings_protectmodifypercentage"))
@@ -2512,14 +2444,6 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
         dropdown.addOption(
           "incremental_pull_only",
           t("setting_syncdirection_incremental_pull_only_desc")
-        );
-        dropdown.addOption(
-          "incremental_push_and_delete_only",
-          t("setting_syncdirection_incremental_push_and_delete_only_desc")
-        );
-        dropdown.addOption(
-          "incremental_pull_and_delete_only",
-          t("setting_syncdirection_incremental_pull_and_delete_only_desc")
         );
 
         dropdown

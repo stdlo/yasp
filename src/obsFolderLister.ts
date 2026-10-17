@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): no bookmarks-only listing, which the free engine skips
 import type { ListedFiles, Vault } from "obsidian";
 import type { Entity } from "./baseTypes";
 
@@ -34,14 +35,11 @@ const isLikelyPluginSubFiles = (x: string) => {
 export const listFilesInObsFolder = async (
   configDir: string,
   vault: Vault,
-  pluginId: string,
-  bookmarksOnly: boolean
+  pluginId: string
 ): Promise<Entity[]> => {
   const q = new Queue([configDir]);
   const CHUNK_SIZE = 10;
-  let contents: Entity[] = [];
-
-  let iterRound = 0;
+  const contents: Entity[] = [];
 
   while (q.length > 0) {
     const itemsToFetch: string[] = [];
@@ -119,22 +117,6 @@ export const listFilesInObsFolder = async (
         }
       }
     }
-
-    if (bookmarksOnly && iterRound > 1) {
-      // list until bookmarks.json is found or next level is arrived.
-      break;
-    }
-
-    iterRound += 1;
-  }
-
-  // console.debug(`contents in obs config: ${JSON.stringify(contents)}`);
-
-  if (bookmarksOnly) {
-    contents = contents.filter(
-      (e) =>
-        e.key === `${configDir}/` || e.key === `${configDir}/bookmarks.json`
-    );
   }
 
   return contents;
