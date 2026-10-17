@@ -120,6 +120,7 @@ const isSkipItemByName = (
   syncUnderscoreItems: boolean,
   configDir: string,
   ignorePaths: string[],
+  routeFilter?: RouteFilter,
 ) => {
   if (key === undefined) {
     throw Error(`isSkipItemByName meets undefinded key!`)
@@ -133,6 +134,10 @@ const isSkipItemByName = (
   }
   if (syncConfigDir && isInsideObsFolder(key, configDir)) {
     return false
+  }
+  // the config folder isn't routed: its own setting, above, decides it
+  if (routeFilter !== undefined && !routeFilter(key)) {
+    return true
   }
   if (isSpecialFolderNameToSkip(key, [])) {
     // some special dirs and files are always skipped
@@ -149,6 +154,13 @@ const isSkipItemByName = (
 
 export type SyncPlanType = Record<string, MixedEntity>
 
+/**
+ * Whether a path is in this run, when the vault syncs with several remotes:
+ * `routeFilterFor()` in `routes.ts`. Applied beside `ignorePaths`, so the
+ * local, remote, and previous-sync lists agree.
+ */
+export type RouteFilter = (key: string) => boolean
+
 export const ensembleMixedEnties = async (
   localEntityList: Entity[],
   prevSyncEntityList: Entity[],
@@ -162,6 +174,7 @@ export const ensembleMixedEnties = async (
   serviceType: SUPPORTED_SERVICES_TYPE,
 
   profiler: Profiler | undefined,
+  routeFilter?: RouteFilter,
 ): Promise<SyncPlanType> => {
   profiler?.addIndent()
   profiler?.insert('ensembleMixedEnties: enter')
@@ -185,6 +198,7 @@ export const ensembleMixedEnties = async (
         syncUnderscoreItems,
         configDir,
         ignorePaths,
+        routeFilter,
       )
     ) {
       continue
@@ -217,6 +231,7 @@ export const ensembleMixedEnties = async (
           syncUnderscoreItems,
           configDir,
           ignorePaths,
+          routeFilter,
         )
       ) {
         continue
@@ -252,6 +267,7 @@ export const ensembleMixedEnties = async (
         syncUnderscoreItems,
         configDir,
         ignorePaths,
+        routeFilter,
       )
     ) {
       continue
@@ -1618,6 +1634,7 @@ export async function syncer(
   ) => any,
   callbackSyncProcess?: any,
   callbackConflictCopy?: ConflictCopyCallback,
+  routeFilter?: RouteFilter,
 ) {
   console.info(`starting sync.`)
   markIsSyncingFunc(true)
@@ -1696,6 +1713,7 @@ export async function syncer(
       fsEncrypt,
       settings.serviceType,
       profiler,
+      routeFilter,
     )
     profiler?.insert(`finish step${step} (build partial mixedEntity)`)
 
@@ -1730,20 +1748,26 @@ export async function syncer(
       await notifyFunc?.(triggerSource, step)
       await ribboonFunc?.(triggerSource, step)
       await statusBarFunc?.(triggerSource, step, everythingOk)
-      await doActualSync(
-        mixedEntityMappings,
-        fsLocal,
-        fsEncrypt,
-        vaultRandomID,
-        profileID,
-        settings.concurrency ?? 5,
-        settings.protectModifyPercentage ?? 50,
-        getProtectModifyPercentageErrorStrFunc,
-        db,
-        profiler,
-        callbackSyncProcess,
-        callbackConflictCopy,
-      )
+      try {
+        await doActualSync(
+          mixedEntityMappings,
+          fsLocal,
+          fsEncrypt,
+          vaultRandomID,
+          profileID,
+          settings.concurrency ?? 5,
+          settings.protectModifyPercentage ?? 50,
+          getProtectModifyPercentageErrorStrFunc,
+          db,
+          profiler,
+          callbackSyncProcess,
+          callbackConflictCopy,
+        )
+      } finally {
+        // a remote that batches its writes (GitHub) commits what was done,
+        // even when the run stopped partway
+        await fsRemote.finishSync?.()
+      }
       profiler?.insert(`finish step${step} (actual sync)`)
     } else {
       await notifyFunc?.(triggerSource, step)

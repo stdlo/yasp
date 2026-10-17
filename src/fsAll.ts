@@ -61,6 +61,11 @@ export abstract class FakeFs {
       return false
     }
   }
+  /**
+   * An optional hook the engine calls once the plan has run: a remote that
+   * stages its writes (GitHub) commits them here.
+   */
+  finishSync?(): Promise<void>
   abstract getUserDisplayName(): Promise<string>
   abstract revokeAuth(): Promise<any>
   abstract allowEmptyFile(): boolean

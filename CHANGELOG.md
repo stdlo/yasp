@@ -22,6 +22,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   percentage guard. A single-remote setup becomes the remote `dropbox` with
   the table `default → dropbox`, and its records move to that remote's
   profile (`remote-dropbox`), so it syncs exactly as before.
+- Two engine hooks, both unused by a single remote: a route filter applied
+  beside `ignorePaths`, and `FakeFs.finishSync()`, called once the plan has
+  run, for a remote that commits its writes in one batch.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a
