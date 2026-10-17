@@ -80,7 +80,9 @@ run with:
   only, which the planner needs as parents and which create nothing on their own.
 
 Before the runs, in this order: routed-folder renames recorded since the last sync are finished (below); the
-ownership check; the hold rule (below). One remote failing (offline, a bad token) doesn't stop the others; each
+ownership check; the hold rule (below). A dry run (the sync plan without the sync) writes nothing: it skips the
+renames, adopts no table and writes no routes file (a contradiction still stops it), and asks no question, leaving
+the held runs held. One remote failing (offline, a bad token) doesn't stop the others; each
 reports its own result. Local deletions keep going to the trash, the net under every case below.
 
 **Options considered:** one run with a composite `FakeFs` that dispatches each path to its backend. It would plan

@@ -303,12 +303,14 @@ export const deleteRemoteFolder = async (fs: FakeFs, folder: string) => {
 /**
  * The ownership check: reads each remote's routes file, adopts a newer
  * table, and writes this device's ownership where a remote's differs.
- * Returns the reason to stop every run, when there is one.
+ * Returns the reason to stop every run, when there is one. A dry run only
+ * reads: it adopts nothing and writes nothing.
  */
 const checkOwnership = async (
   settings: RemotelySavePluginSettings,
   runs: Run[],
   deps: MultiSyncDeps,
+  dry: boolean,
 ) => {
   // an encrypted remote's routes file goes through its encryption, which
   // needs a listing first to know the remote's names
@@ -349,6 +351,10 @@ const checkOwnership = async (
   if (merged.kind === 'contradiction') {
     closeAll()
     return `The folder "${merged.folder}" is owned by ${merged.owners.join(' and ')}. Fix the routes in the settings.`
+  }
+  if (dry) {
+    closeAll()
+    return undefined
   }
   if (merged.kind === 'adopt') {
     settings.routes = merged.table
@@ -399,6 +405,7 @@ const applyHoldRule = async (
   settings: RemotelySavePluginSettings,
   runs: Run[],
   deps: MultiSyncDeps,
+  dry: boolean,
 ) => {
   const recordsByTarget = new Map<string, string[]>()
   for (const run of runs) {
@@ -415,7 +422,8 @@ const applyHoldRule = async (
   const local = localFoldersOf(await deps.fsLocal.walk())
   const held = new Map<string, HeldQuestion>()
   for (const q of heldQuestions(settings.routes!, local, recordsByTarget)) {
-    const answer = await deps.askHeld?.(q)
+    // a dry run asks nothing: the question waits for a real sync
+    const answer = dry ? undefined : await deps.askHeld?.(q)
     if (answer === 'rename' && q.appeared !== undefined) {
       recordFolderRename(settings, q.gone, q.appeared, (deps.now ?? Date.now)())
       await deps.saveSettings()
@@ -517,18 +525,23 @@ export const syncAllRemotes = async (
 
   let held = new Map<string, HeldQuestion>()
   const failed = new Map<string, string>()
+  // a dry run makes the plans and writes nothing: no renames, no routes
+  // files, no questions
+  const dry = deps.triggerSource === 'dry'
   if (isRouted(settings)) {
-    await applyPendingRenames(settings, runs, deps, failed)
-    const stop = await checkOwnership(settings, runs, deps)
+    if (!dry) {
+      await applyPendingRenames(settings, runs, deps, failed)
+    }
+    const stop = await checkOwnership(settings, runs, deps, dry)
     if (stop !== undefined) {
       for (const run of runs) {
         report(run.remote, { status: 'stopped', at: now(), error: stop })
       }
       return results
     }
-    held = await applyHoldRule(settings, runs, deps)
+    held = await applyHoldRule(settings, runs, deps, dry)
     // an answer "renamed" records a rename: finish it before the runs
-    if ((settings.pendingRenames ?? []).length > 0) {
+    if (!dry && (settings.pendingRenames ?? []).length > 0) {
       await applyPendingRenames(settings, runs, deps, failed)
     }
   }

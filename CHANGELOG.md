@@ -34,7 +34,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   with a notice and a contradiction stopping the runs; and a routed folder
   gone while the plugin wasn't watching holds its runs and asks once. A
   rename the remote already made before the plugin stopped goes on to the
-  records instead of failing that remote at every sync. After
+  records instead of failing that remote at every sync. A dry run writes
+  nothing: no renames, no routes files, no adopted table, and no question.
+  After
   a run, the records of anything a batching remote didn't commit go back to
   what they were.
 - A GitHub remote (`src/fsGithub.ts`) over GitHub's REST API through

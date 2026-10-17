@@ -339,13 +339,16 @@ const world = (
   asked: 0,
 })
 
-const sync = async (w: World) => {
+const sync = async (
+  w: World,
+  triggerSource: MultiSyncDeps['triggerSource'] = 'manual',
+) => {
   const deps: MultiSyncDeps = {
     fsLocal: w.local,
     db: w.db,
     vaultRandomID: VAULT,
     configDir: '.obsidian',
-    triggerSource: 'manual',
+    triggerSource,
     makeFs: (r) => w.fs[r.id],
     makeEncrypt: (fs, s) =>
       (s.password ?? '') === '' ? plainEncrypt(fs) : prefixEncrypt(fs),
@@ -484,6 +487,44 @@ describe('Several remotes: the orchestrator', () => {
     // the routes file is the only write
     assert.equal(w.fs.b.writes, 1)
     assert.deepEqual(w.settings.pendingRenames, [])
+  })
+
+  it('writes nothing on a dry run', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [
+          { folder: 'work', target: 'b' },
+          { folder: 'docs', target: 'b' },
+        ],
+      ),
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('work/w.md', 'w')
+    w.local.put('docs/d.md', 'd')
+    await sync(w)
+    // a rename waiting for the next sync, a new note, and a routed folder
+    // gone while unwatched, which a real sync would ask about
+    w.local.files.set('job/w.md', w.local.files.get('work/w.md')!)
+    w.local.files.delete('work/w.md')
+    recordFolderRename(w.settings, 'work', 'job', 2)
+    w.local.put('m.md', 'm')
+    w.local.files.delete('docs/d.md')
+    const snapshot = () =>
+      JSON.stringify({
+        a: [...w.fs.a.files].map(([k, f]) => [k, decode(f.content)]),
+        b: [...w.fs.b.files].map(([k, f]) => [k, decode(f.content)]),
+        records: [...(w.db as any).prevSyncRecordsTbl.items],
+        bases: [...(w.db as any).syncBasesTbl.items],
+        settings: w.settings,
+      })
+    const before = snapshot()
+    const res = await sync(w, 'dry')
+    assert.equal(snapshot(), before)
+    // held, unasked
+    assert.equal(res.b, 'held')
+    assert.equal(w.asked, 0)
+    assert.equal(w.fs.b.renames.length, 0)
   })
 
   it('holds both runs when a routed folder is gone while unwatched', async () => {
