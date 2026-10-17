@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): no file content history, sync plan type from the restored engine, its own database name
+// Changed for Remotely Save Lite (2026): no file content history, sync plan type from the restored engine, its own database name, a table of last-synced Markdown copies for Smart Conflict
 import localforage from 'localforage'
 import { extendPrototype as ep1 } from 'localforage-getitems'
 import { extendPrototype as ep2 } from 'localforage-removeitems'
@@ -21,6 +21,7 @@ export const DEFAULT_TBL_LOGGER_OUTPUT = 'loggeroutput'
 export const DEFAULT_TBL_SIMPLE_KV_FOR_MISC = 'simplekvformisc'
 export const DEFAULT_TBL_PREV_SYNC_RECORDS = 'prevsyncrecords'
 export const DEFAULT_TBL_PROFILER_RESULTS = 'profilerresults'
+export const DEFAULT_TBL_SYNC_BASES = 'syncbases'
 
 /**
  * @deprecated
@@ -63,6 +64,8 @@ export interface InternalDBs {
   simpleKVForMiscTbl: LocalForage
   prevSyncRecordsTbl: LocalForage
   profilerResultsTbl: LocalForage
+  /** The last-synced content of each small Markdown file, the base Smart Conflict merges from. */
+  syncBasesTbl: LocalForage
 
   /**
    * @deprecated
@@ -212,6 +215,10 @@ export const prepareDBs = async (
     profilerResultsTbl: localforage.createInstance({
       name: DEFAULT_DB_NAME,
       storeName: DEFAULT_TBL_PROFILER_RESULTS,
+    }),
+    syncBasesTbl: localforage.createInstance({
+      name: DEFAULT_DB_NAME,
+      storeName: DEFAULT_TBL_SYNC_BASES,
     }),
 
     fileHistoryTbl: localforage.createInstance({
@@ -489,6 +496,49 @@ export const clearAllPrevSyncRecordByVault = async (
     x.startsWith(`${vaultRandomID}\t`),
   )
   await db.prevSyncRecordsTbl.removeItems(keys)
+}
+
+export const getSyncBaseByVaultAndProfile = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  profileID: string,
+  key: string,
+) => {
+  return (await db.syncBasesTbl.getItem(
+    `${vaultRandomID}\t${profileID}\t${key}`,
+  )) as string | null
+}
+
+export const upsertSyncBaseByVaultAndProfile = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  profileID: string,
+  key: string,
+  content: string,
+) => {
+  await db.syncBasesTbl.setItem(
+    `${vaultRandomID}\t${profileID}\t${key}`,
+    content,
+  )
+}
+
+export const clearSyncBaseByVaultAndProfile = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  profileID: string,
+  key: string,
+) => {
+  await db.syncBasesTbl.removeItem(`${vaultRandomID}\t${profileID}\t${key}`)
+}
+
+export const clearAllSyncBasesByVault = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+) => {
+  const keys = (await db.syncBasesTbl.keys()).filter((x) =>
+    x.startsWith(`${vaultRandomID}\t`),
+  )
+  await db.syncBasesTbl.removeItems(keys)
 }
 
 export const clearAllLoggerOutputRecords = async (db: InternalDBs) => {

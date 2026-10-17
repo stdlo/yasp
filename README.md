@@ -27,6 +27,7 @@ the free, Apache-2.0 plugin going with Dropbox.
   and every paid feature (Smart Conflict, file content history, and the paid
   backends); the settings the free engine can't honour (only-allow paths,
   bookmark sync, and the "and delete" directions); and the CLA.
+- **Rebuilt:** Smart Conflict, written fresh (see below).
 - **Restored:** the sync engine, from upstream's Apache-2.0 history before it
   moved into `pro/`, without its paid hooks. Tests now pin the engine's
   decision for each file.
@@ -73,11 +74,11 @@ Your notes sync to `/Apps/<your app's name>/<vault name>` in your Dropbox.
 
 ## Paid features rebuilt
 
-- **Smart Conflict:** not rebuilt yet. Upstream describes it as merging small
-  Markdown edits made on both sides and copying any other conflicting file
-  beside the note instead of overwriting it. It will be rebuilt from that
-  public description only, never from upstream's paid code. Until then, a
-  conflict is settled by "keep newer" or "keep larger".
+- **Smart Conflict:** built fresh from upstream's public description, and the
+  default. A Markdown file of 64 KB or less edited on both sides is merged by
+  lines from its last-synced copy. Any other conflict, or a merge where both
+  sides changed the same lines, keeps the local file and saves the remote one
+  beside it as `<name>.conflict-remote-<YYYYMMDD-HHmmss>.<ext>`, with a notice.
 - **The paid backends** (Google Drive, Box, pCloud, Yandex Disk, Koofr, Azure
   Blob Storage, and OneDrive with full access) aren't rebuilt. A backend can be
   added through the `FakeFs` interface (`src/fsAll.ts`): one member of
@@ -114,8 +115,9 @@ Your notes sync to `/Apps/<your app's name>/<vault name>` in your Dropbox.
 - **Skip large files** and **skip paths** by custom regex.
 - **[The sync algorithm](./docs/sync_algorithm/v3/intro.md)** is documented
   for discussion.
-- **[Basic conflict detection and handling](./docs/sync_algorithm/v3/intro.md):**
-  keep the newer or the larger file.
+- **[Conflict detection and handling](./docs/sync_algorithm/v3/intro.md):**
+  Smart Conflict (merge small Markdown files, otherwise keep both), or keep
+  the newer or the larger file.
 
 ## Limitations
 

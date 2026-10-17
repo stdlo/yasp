@@ -20,5 +20,6 @@ What this fork changed:
   Dropbox redirect, so it installs beside upstream.
 - Replaced Biome with oxlint and oxfmt, and added tests for the sync
   plan decisions.
+- Rebuilt Smart Conflict as new code, from its public description only.
 
 Each changed source file says what changed in a comment at its top.

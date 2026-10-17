@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, the free engine's choices, its own ids
+// Changed for Remotely Save Lite (2026): Dropbox only, the free engine's choices, its own ids, Smart Conflict rebuilt
 /**
  * Only type defs here.
  * To avoid circular dependency.
@@ -116,7 +116,11 @@ export const OAUTH2_FORCE_EXPIRE_MILLISECONDS = 1000 * 60 * 60 * 24 * 80
 
 export type EmptyFolderCleanType = 'skip' | 'clean_both'
 
-export type ConflictActionType = 'keep_newer' | 'keep_larger'
+/**
+ * `smart` (Smart Conflict) merges a small Markdown file edited on both sides,
+ * and otherwise keeps both versions: the remote one as a copy beside the file.
+ */
+export type ConflictActionType = 'keep_newer' | 'keep_larger' | 'smart'
 
 export type DecisionTypeForMixedEntity =
   | 'only_history'
@@ -134,6 +138,8 @@ export type DecisionTypeForMixedEntity =
   | 'conflict_created_then_do_nothing'
   | 'conflict_modified_then_keep_local'
   | 'conflict_modified_then_keep_remote'
+  | 'conflict_created_then_smart_conflict'
+  | 'conflict_modified_then_smart_conflict'
   | 'folder_existed_both_then_do_nothing'
   | 'folder_existed_local_then_also_create_remote'
   | 'folder_existed_remote_then_also_create_local'

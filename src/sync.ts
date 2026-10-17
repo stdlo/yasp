@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments, decision functions exported for tests
+// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments, decision functions exported for tests, Smart Conflict rebuilt from its public description
 import AggregateError from 'aggregate-error'
 import PQueue from 'p-queue'
 import XRegExp from 'xregexp'
@@ -18,16 +18,21 @@ import type { FakeFsEncrypt } from './fsEncrypt'
 import {
   type InternalDBs,
   clearPrevSyncRecordByVaultAndProfile,
+  clearSyncBaseByVaultAndProfile,
   getAllPrevSyncRecordsByVaultAndProfile,
+  getSyncBaseByVaultAndProfile,
   insertSyncPlanRecordByVault,
   upsertPrevSyncRecordByVaultAndProfile,
+  upsertSyncBaseByVaultAndProfile,
 } from './localdb'
+import { merge3 } from './merge3'
 import {
   DEFAULT_FILE_NAME_FOR_METADATAONREMOTE,
   DEFAULT_FILE_NAME_FOR_METADATAONREMOTE2,
 } from './metadataOnRemote'
 import {
   atWhichLevel,
+  bufferToArrayBuffer,
   getParentFolder,
   isHiddenPath,
   isSpecialFolderNameToSkip,
@@ -573,8 +578,13 @@ export const getSyncPlanInplace = async (
                     mixedEntry.change = true
                     keptFolder.add(getParentFolder(key))
                   }
+                } else if (conflictAction === 'smart') {
+                  // merged or duplicated when it runs: see smartConflict
+                  mixedEntry.decisionBranch = 15
+                  mixedEntry.decision = 'conflict_created_then_smart_conflict'
+                  mixedEntry.change = true
+                  keptFolder.add(getParentFolder(key))
                 }
-                // TODO(smart-conflict): merge or keep both copies here.
               } else if (syncDirection === 'incremental_pull_only') {
                 mixedEntry.decisionBranch = 22
                 mixedEntry.decision = 'conflict_created_then_keep_remote'
@@ -620,8 +630,13 @@ export const getSyncPlanInplace = async (
                     mixedEntry.change = true
                     keptFolder.add(getParentFolder(key))
                   }
+                } else if (conflictAction === 'smart') {
+                  // merged or duplicated when it runs: see smartConflict
+                  mixedEntry.decisionBranch = 20
+                  mixedEntry.decision = 'conflict_modified_then_smart_conflict'
+                  mixedEntry.change = true
+                  keptFolder.add(getParentFolder(key))
                 }
-                // TODO(smart-conflict): merge or keep both copies here.
               } else if (syncDirection === 'incremental_pull_only') {
                 mixedEntry.decisionBranch = 24
                 mixedEntry.decision = 'conflict_modified_then_keep_remote'
@@ -950,7 +965,9 @@ const splitFourStepsOnEntityMappings = (
       val.decision === 'conflict_created_then_keep_local' ||
       val.decision === 'conflict_created_then_keep_remote' ||
       val.decision === 'conflict_modified_then_keep_local' ||
-      val.decision === 'conflict_modified_then_keep_remote'
+      val.decision === 'conflict_modified_then_keep_remote' ||
+      val.decision === 'conflict_created_then_smart_conflict' ||
+      val.decision === 'conflict_modified_then_smart_conflict'
     ) {
       if (
         uploadDownloads.length === 0 ||
@@ -1013,6 +1030,221 @@ const fullfillMTimeOfRemoteEntityInplace = (
   return remote
 }
 
+/**
+ * Smart Conflict merges a Markdown file only when the file, on both sides,
+ * and its last-synced copy (the base) are at most this many bytes.
+ */
+export const SMART_CONFLICT_MERGE_LIMIT = 64 * 1024
+
+/** Called with the path of a file and of the copy a conflict kept beside it. */
+export type ConflictCopyCallback = (
+  key: string,
+  copyKey: string,
+) => Promise<void> | void
+
+const isMarkdown = (key: string) => key.toLowerCase().endsWith('.md')
+
+/** The text of a UTF-8 file, BOM kept; undefined if it isn't valid UTF-8. */
+const decodeText = (content: ArrayBuffer) => {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      content,
+    )
+  } catch {
+    return undefined
+  }
+}
+
+const sameBytes = (x: ArrayBuffer, y: ArrayBuffer) => {
+  if (x.byteLength !== y.byteLength) {
+    return false
+  }
+  const a = new Uint8Array(x)
+  const b = new Uint8Array(y)
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * The path of a conflict copy of `key`:
+ * `<name>.conflict-remote-<YYYYMMDD-HHmmss>.<ext>`, in local time, with
+ * `-<n>` after the time when `n` is above 1.
+ */
+export const conflictCopyKey = (key: string, mtime: number, n = 1) => {
+  const slash = key.lastIndexOf('/')
+  const dot = key.lastIndexOf('.')
+  const hasExt = dot > slash + 1
+  const stem = hasExt ? key.slice(0, dot) : key
+  const ext = hasExt ? key.slice(dot) : ''
+  const d = new Date(mtime)
+  const two = (x: number) => `0${x}`.slice(-2)
+  const stamp =
+    `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}-` +
+    `${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}`
+  return `${stem}.conflict-remote-${stamp}${n > 1 ? `-${n}` : ''}${ext}`
+}
+
+const existsLocally = async (fsLocal: FakeFs, key: string) => {
+  try {
+    await fsLocal.stat(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * After a file is synced: a Markdown file within the limit becomes the base
+ * for its next conflict; any other Markdown file loses its base, so a later
+ * merge never starts from an older copy.
+ */
+const recordSyncBase = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  profileID: string,
+  key: string,
+  content: ArrayBuffer | undefined,
+) => {
+  if (key.endsWith('/') || !isMarkdown(key)) {
+    return
+  }
+  if (
+    content !== undefined &&
+    content.byteLength <= SMART_CONFLICT_MERGE_LIMIT
+  ) {
+    const text = decodeText(content)
+    if (text !== undefined) {
+      await upsertSyncBaseByVaultAndProfile(
+        db,
+        vaultRandomID,
+        profileID,
+        key,
+        text,
+      )
+      return
+    }
+  }
+  await clearSyncBaseByVaultAndProfile(db, vaultRandomID, profileID, key)
+}
+
+/** Uploads the local file or folder, and records it as synced. */
+const pushAndRecord = async (
+  key: string,
+  vaultRandomID: string,
+  profileID: string,
+  fsLocal: FakeFs,
+  fsEncrypt: FakeFsEncrypt,
+  db: InternalDBs,
+) => {
+  const mtimeCli = (await fsLocal.stat(key)).mtimeCli!
+  const { entity, content } = await copyFileOrFolder(key, fsLocal, fsEncrypt)
+  // TODO: abstract away the dirty hack
+  fullfillMTimeOfRemoteEntityInplace(entity, mtimeCli)
+  // console.debug(`after fullfill, entity=${JSON.stringify(entity,null,2)}`)
+  await upsertPrevSyncRecordByVaultAndProfile(
+    db,
+    vaultRandomID,
+    profileID,
+    entity,
+  )
+  await recordSyncBase(db, vaultRandomID, profileID, key, content)
+}
+
+/**
+ * Smart Conflict, for a file changed on both sides since the last sync:
+ * - the same content on both sides: recorded as synced;
+ * - a Markdown file, both sides within the limit, its base stored: merged by
+ *   lines, written locally, and uploaded; the result is the new base;
+ * - otherwise, or when the merge fails: the remote version is saved beside
+ *   the file as a conflict copy, and the local one is kept and uploaded.
+ * Nothing is overwritten without a copy.
+ */
+const smartConflict = async (
+  key: string,
+  vaultRandomID: string,
+  profileID: string,
+  r: MixedEntity,
+  fsLocal: FakeFs,
+  fsEncrypt: FakeFsEncrypt,
+  db: InternalDBs,
+  callbackConflictCopy?: ConflictCopyCallback,
+) => {
+  const localContent = await fsLocal.readFile(key)
+  const remoteContent = await fsEncrypt.readFile(key)
+
+  if (sameBytes(localContent, remoteContent)) {
+    // as in "equal": the remote entity with the local mtime
+    const entity = fullfillMTimeOfRemoteEntityInplace(
+      r.remote!,
+      r.local?.mtimeCli,
+    )
+    await upsertPrevSyncRecordByVaultAndProfile(
+      db,
+      vaultRandomID,
+      profileID,
+      entity,
+    )
+    await recordSyncBase(db, vaultRandomID, profileID, key, localContent)
+    return
+  }
+
+  if (
+    isMarkdown(key) &&
+    localContent.byteLength <= SMART_CONFLICT_MERGE_LIMIT &&
+    remoteContent.byteLength <= SMART_CONFLICT_MERGE_LIMIT
+  ) {
+    const base = await getSyncBaseByVaultAndProfile(
+      db,
+      vaultRandomID,
+      profileID,
+      key,
+    )
+    const localText = decodeText(localContent)
+    const remoteText = decodeText(remoteContent)
+    if (
+      base !== null &&
+      base !== undefined &&
+      localText !== undefined &&
+      remoteText !== undefined
+    ) {
+      const merged = merge3(base, localText, remoteText)
+      if (merged !== undefined) {
+        const now = Date.now()
+        await fsLocal.writeFile(
+          key,
+          bufferToArrayBuffer(new TextEncoder().encode(merged)),
+          now,
+          r.local?.ctimeCli ?? now,
+        )
+        await pushAndRecord(
+          key,
+          vaultRandomID,
+          profileID,
+          fsLocal,
+          fsEncrypt,
+          db,
+        )
+        return
+      }
+    }
+  }
+
+  const remoteMtime = r.remote?.mtimeCli ?? r.remote?.mtimeSvr ?? Date.now()
+  let n = 1
+  let copyKey = conflictCopyKey(key, remoteMtime, n)
+  while (await existsLocally(fsLocal, copyKey)) {
+    n += 1
+    copyKey = conflictCopyKey(key, remoteMtime, n)
+  }
+  await fsLocal.writeFile(copyKey, remoteContent, remoteMtime, remoteMtime)
+  await pushAndRecord(key, vaultRandomID, profileID, fsLocal, fsEncrypt, db)
+  await callbackConflictCopy?.(key, copyKey)
+}
+
 const dispatchOperationToActualV3 = async (
   key: string,
   vaultRandomID: string,
@@ -1021,6 +1253,7 @@ const dispatchOperationToActualV3 = async (
   fsLocal: FakeFs,
   fsEncrypt: FakeFsEncrypt,
   db: InternalDBs,
+  callbackConflictCopy?: ConflictCopyCallback,
 ) => {
   // console.debug(
   //   `inside dispatchOperationToActualV3, key=${key}, r=${JSON.stringify(
@@ -1036,6 +1269,7 @@ const dispatchOperationToActualV3 = async (
       profileID,
       key,
     )
+    await clearSyncBaseByVaultAndProfile(db, vaultRandomID, profileID, key)
   } else if (
     r.decision === 'local_is_created_too_large_then_do_nothing' ||
     r.decision === 'remote_is_created_too_large_then_do_nothing' ||
@@ -1080,16 +1314,20 @@ const dispatchOperationToActualV3 = async (
     r.decision === 'conflict_modified_then_keep_local'
   ) {
     // console.debug(`before upload in sync, r=${JSON.stringify(r, null, 2)}`);
-    const mtimeCli = (await fsLocal.stat(r.key)).mtimeCli!
-    const { entity } = await copyFileOrFolder(r.key, fsLocal, fsEncrypt)
-    // TODO: abstract away the dirty hack
-    fullfillMTimeOfRemoteEntityInplace(entity, mtimeCli)
-    // console.debug(`after fullfill, entity=${JSON.stringify(entity,null,2)}`)
-    await upsertPrevSyncRecordByVaultAndProfile(
-      db,
+    await pushAndRecord(r.key, vaultRandomID, profileID, fsLocal, fsEncrypt, db)
+  } else if (
+    r.decision === 'conflict_created_then_smart_conflict' ||
+    r.decision === 'conflict_modified_then_smart_conflict'
+  ) {
+    await smartConflict(
+      r.key,
       vaultRandomID,
       profileID,
-      entity,
+      r,
+      fsLocal,
+      fsEncrypt,
+      db,
+      callbackConflictCopy,
     )
   } else if (
     r.decision === 'remote_is_modified_then_pull' ||
@@ -1098,10 +1336,11 @@ const dispatchOperationToActualV3 = async (
     r.decision === 'conflict_modified_then_keep_remote' ||
     r.decision === 'folder_existed_remote_then_also_create_local'
   ) {
+    let content: ArrayBuffer | undefined = undefined
     if (r.key.endsWith('/')) {
       await fsLocal.mkdir(r.key)
     } else {
-      await copyFile(r.key, fsEncrypt, fsLocal)
+      content = (await copyFile(r.key, fsEncrypt, fsLocal)).content
     }
     await upsertPrevSyncRecordByVaultAndProfile(
       db,
@@ -1109,6 +1348,7 @@ const dispatchOperationToActualV3 = async (
       profileID,
       r.remote!,
     )
+    await recordSyncBase(db, vaultRandomID, profileID, r.key, content)
   } else if (r.decision === 'local_is_deleted_thus_also_delete_remote') {
     // local is deleted, we need to delete remote now
     await fsEncrypt.rm(r.key)
@@ -1118,6 +1358,7 @@ const dispatchOperationToActualV3 = async (
       profileID,
       r.key,
     )
+    await clearSyncBaseByVaultAndProfile(db, vaultRandomID, profileID, r.key)
   } else if (r.decision === 'remote_is_deleted_thus_also_delete_local') {
     // remote is deleted, we need to delete local now
     await fsLocal.rm(r.key)
@@ -1127,6 +1368,7 @@ const dispatchOperationToActualV3 = async (
       profileID,
       r.key,
     )
+    await clearSyncBaseByVaultAndProfile(db, vaultRandomID, profileID, r.key)
   } else if (r.decision === 'folder_to_be_created') {
     await fsLocal.mkdir(r.key)
     const { entity } = await copyFolder(r.key, fsLocal, fsEncrypt)
@@ -1178,6 +1420,7 @@ export const doActualSync = async (
   db: InternalDBs,
   profiler: Profiler | undefined,
   callbackSyncProcess?: any,
+  callbackConflictCopy?: ConflictCopyCallback,
 ) => {
   profiler?.addIndent()
   profiler?.insert('doActualSync: enter')
@@ -1300,6 +1543,7 @@ export const doActualSync = async (
             fsLocal,
             fsEncrypt,
             db,
+            callbackConflictCopy,
           )
 
           // console.debug(`finished ${key}`);
@@ -1373,6 +1617,7 @@ export async function syncer(
     everythingOk: boolean,
   ) => any,
   callbackSyncProcess?: any,
+  callbackConflictCopy?: ConflictCopyCallback,
 ) {
   console.info(`starting sync.`)
   markIsSyncingFunc(true)
@@ -1458,7 +1703,7 @@ export async function syncer(
       mixedEntityMappings,
       settings.howToCleanEmptyFolder ?? 'clean_both',
       settings.skipSizeLargerThan ?? -1,
-      settings.conflictAction ?? 'keep_newer',
+      settings.conflictAction ?? 'smart',
       settings.syncDirection ?? 'bidirectional',
       profiler,
       settings,
@@ -1497,6 +1742,7 @@ export async function syncer(
         db,
         profiler,
         callbackSyncProcess,
+        callbackConflictCopy,
       )
       profiler?.insert(`finish step${step} (actual sync)`)
     } else {

@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids, no Biome comments
+// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids, no Biome comments, Smart Conflict as the default with a notice for each conflict copy
 import AggregateError from 'aggregate-error'
 import cloneDeep from 'lodash/cloneDeep'
 import throttle from 'lodash/throttle'
@@ -74,7 +74,7 @@ const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
   enableStatusBarInfo: true,
   deleteToWhere: 'system',
   agreeToUseSyncV3: false,
-  conflictAction: 'keep_newer',
+  conflictAction: 'smart',
   howToCleanEmptyFolder: 'clean_both',
   protectModifyPercentage: 50,
   syncDirection: 'bidirectional',
@@ -391,6 +391,18 @@ export default class RemotelySavePlugin extends Plugin {
       )
     }
 
+    // Shown on every run, auto ones included: a conflict copy is a new file.
+    const callbackConflictCopy = (key: string, copyKey: string) => {
+      new Notice(
+        t('syncrun_conflictcopy', {
+          pluginName: this.manifest.name,
+          key,
+          copyKey,
+        }),
+        10 * 1000,
+      )
+    }
+
     if (this.isSyncing) {
       getNotice(
         triggerSource,
@@ -425,6 +437,7 @@ export default class RemotelySavePlugin extends Plugin {
       ribboonFunc,
       statusBarFunc,
       callbackSyncProcess,
+      callbackConflictCopy,
     )
 
     fsEncrypt.closeResources()
@@ -823,13 +836,14 @@ export default class RemotelySavePlugin extends Plugin {
     if (this.settings.agreeToUseSyncV3 === undefined) {
       this.settings.agreeToUseSyncV3 = false
     }
-    // Settings from upstream may name a paid choice the free engine doesn't
-    // have; it would leave a conflict undecided, so they fall back.
+    // A choice the engine doesn't know (upstream's paid smart_conflict among
+    // them) would leave a conflict undecided, so it falls back to the default.
     if (
       this.settings.conflictAction !== 'keep_newer' &&
-      this.settings.conflictAction !== 'keep_larger'
+      this.settings.conflictAction !== 'keep_larger' &&
+      this.settings.conflictAction !== 'smart'
     ) {
-      this.settings.conflictAction = 'keep_newer'
+      this.settings.conflictAction = 'smart'
     }
     if (this.settings.howToCleanEmptyFolder === undefined) {
       this.settings.howToCleanEmptyFolder = 'clean_both'

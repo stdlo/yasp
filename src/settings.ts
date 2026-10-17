@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed, its own name and protocol action
+// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed, its own name and protocol action, Smart Conflict offered and its copies cleared with the sync records
 import { Eye, EyeOff, createElement } from 'lucide'
 import {
   type App,
@@ -40,6 +40,7 @@ import {
 } from './importExport'
 import {
   clearAllPrevSyncRecordByVault,
+  clearAllSyncBasesByVault,
   clearAllSyncPlanRecords,
   destroyDBs,
   upsertLastFailedSyncTimeByVault,
@@ -1121,15 +1122,15 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
           })
       })
 
-    // TODO(smart-conflict): offer smart conflict here once it's rebuilt.
     new Setting(advDiv)
       .setName(t('settings_conflictaction'))
       .setDesc(stringToFragment(t('settings_conflictaction_desc')))
       .addDropdown((dropdown) => {
         dropdown
+          .addOption('smart', t('settings_conflictaction_smart'))
           .addOption('keep_newer', t('settings_conflictaction_keep_newer'))
           .addOption('keep_larger', t('settings_conflictaction_keep_larger'))
-          .setValue(this.plugin.settings.conflictAction ?? 'keep_newer')
+          .setValue(this.plugin.settings.conflictAction ?? 'smart')
           .onChange(async (val) => {
             this.plugin.settings.conflictAction = val as ConflictActionType
             await this.plugin.saveSettings()
@@ -1504,6 +1505,10 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
         button.setButtonText(t('settings_delprevsync_button'))
         button.onClick(async () => {
           await clearAllPrevSyncRecordByVault(
+            this.plugin.db,
+            this.plugin.vaultRandomID,
+          )
+          await clearAllSyncBasesByVault(
             this.plugin.db,
             this.plugin.vaultRandomID,
           )

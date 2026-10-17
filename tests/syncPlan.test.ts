@@ -287,6 +287,37 @@ describe('Sync plan: conflicts', () => {
       { decision: 'conflict_modified_then_keep_local', branch: 18 },
     )
   })
+
+  it('leaves a smart conflict to run time when both sides created it', async () => {
+    assert.deepEqual(
+      await decide(localNew, undefined, remoteNew, { conflict: 'smart' }),
+      { decision: 'conflict_created_then_smart_conflict', branch: 15 },
+    )
+  })
+
+  it('leaves a smart conflict to run time when both sides modified it', async () => {
+    assert.deepEqual(
+      await decide(localNew, prev, remoteNew, { conflict: 'smart' }),
+      { decision: 'conflict_modified_then_smart_conflict', branch: 20 },
+    )
+  })
+
+  it('keeps one side in a one-way sync whatever the conflict choice', async () => {
+    assert.deepEqual(
+      await decide(localNew, prev, remoteNew, {
+        conflict: 'smart',
+        direction: 'incremental_pull_only',
+      }),
+      { decision: 'conflict_modified_then_keep_remote', branch: 24 },
+    )
+    assert.deepEqual(
+      await decide(localNew, prev, remoteNew, {
+        conflict: 'smart',
+        direction: 'incremental_push_only',
+      }),
+      { decision: 'conflict_modified_then_keep_local', branch: 25 },
+    )
+  })
 })
 
 describe('Sync plan: the size limit', () => {
