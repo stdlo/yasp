@@ -4,70 +4,21 @@
  * To avoid circular dependency.
  */
 
-import type {
-  AzureBlobStorageConfig,
-  BoxConfig,
-  GoogleDriveConfig,
-  KoofrConfig,
-  OnedriveFullConfig,
-  PCloudConfig,
-  ProConfig,
-  YandexDiskConfig,
-} from "../pro/src/baseTypesPro";
 import type { LangTypeAndAuto } from "./i18n";
 
 declare global {
   var DEFAULT_DROPBOX_APP_KEY: string;
-  var DEFAULT_ONEDRIVE_CLIENT_ID: string;
-  var DEFAULT_ONEDRIVE_AUTHORITY: string;
 }
 
 export const DROPBOX_APP_KEY = global.DEFAULT_DROPBOX_APP_KEY;
-export const ONEDRIVE_CLIENT_ID = global.DEFAULT_ONEDRIVE_CLIENT_ID;
-export const ONEDRIVE_AUTHORITY = global.DEFAULT_ONEDRIVE_AUTHORITY;
 
 export const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
-export type SUPPORTED_SERVICES_TYPE =
-  | "s3"
-  | "webdav"
-  | "dropbox"
-  | "onedrive"
-  | "onedrivefull"
-  | "webdis"
-  | "googledrive"
-  | "box"
-  | "pcloud"
-  | "yandexdisk"
-  | "koofr"
-  | "azureblobstorage";
-
-export type SUPPORTED_SERVICES_TYPE_WITH_REMOTE_BASE_DIR = Exclude<
-  SUPPORTED_SERVICES_TYPE,
-  "s3" | "azureblobstorage"
->;
-
-export interface S3Config {
-  s3Endpoint: string;
-  s3Region: string;
-  s3AccessKeyID: string;
-  s3SecretAccessKey: string;
-  s3BucketName: string;
-
-  partsConcurrency?: number;
-  forcePathStyle?: boolean;
-  remotePrefix?: string;
-
-  useAccurateMTime?: boolean;
-  reverseProxyNoSignUrl?: string;
-
-  generateFolderObject?: boolean;
-
-  /**
-   * @deprecated
-   */
-  bypassCorsLocally?: boolean;
-}
+/**
+ * The remote services this plugin syncs with. A new one is a member here,
+ * its own `fs<Name>.ts` (a FakeFs), and its own part of the settings tab.
+ */
+export type SUPPORTED_SERVICES_TYPE = "dropbox";
 
 export interface DropboxConfig {
   accessToken: string;
@@ -78,54 +29,6 @@ export interface DropboxConfig {
   accountID: string;
   username: string;
   credentialsShouldBeDeletedAtTime?: number;
-  remoteBaseDir?: string;
-}
-
-export type WebdavAuthType = "digest" | "basic";
-export type WebdavDepthType =
-  | "auto" // deprecated on 20240116
-  | "auto_unknown" // deprecated on 20240116
-  | "auto_1" // deprecated on 20240116
-  | "auto_infinity" // deprecated on 20240116
-  | "manual_1"
-  | "manual_infinity";
-
-export interface WebdavConfig {
-  address: string;
-  username: string;
-  password: string;
-  authType: WebdavAuthType;
-
-  depth?: WebdavDepthType;
-  remoteBaseDir?: string;
-
-  customHeaders?: string;
-
-  /**
-   * @deprecated
-   */
-  manualRecursive: boolean; // deprecated in 0.3.6, use depth
-}
-
-export interface OnedriveConfig {
-  accessToken: string;
-  clientID: string;
-  authority: string;
-  refreshToken: string;
-  accessTokenExpiresInSeconds: number;
-  accessTokenExpiresAtTime: number;
-  deltaLink: string;
-  username: string;
-  credentialsShouldBeDeletedAtTime?: number;
-  remoteBaseDir?: string;
-  emptyFile: "skip" | "error";
-  kind: "onedrive";
-}
-
-export interface WebdisConfig {
-  address: string;
-  username?: string;
-  password?: string;
   remoteBaseDir?: string;
 }
 
@@ -145,18 +48,7 @@ export interface ProfilerConfig {
 }
 
 export interface RemotelySavePluginSettings {
-  s3: S3Config;
-  webdav: WebdavConfig;
   dropbox: DropboxConfig;
-  onedrive: OnedriveConfig;
-  onedrivefull: OnedriveFullConfig;
-  webdis: WebdisConfig;
-  googledrive: GoogleDriveConfig;
-  box: BoxConfig;
-  pcloud: PCloudConfig;
-  yandexdisk: YandexDiskConfig;
-  koofr: KoofrConfig;
-  azureblobstorage: AzureBlobStorageConfig;
 
   password: string;
   serviceType: SUPPORTED_SERVICES_TYPE;
@@ -187,8 +79,6 @@ export interface RemotelySavePluginSettings {
 
   profiler?: ProfilerConfig;
 
-  pro?: ProConfig;
-
   /**
    * @deprecated
    */
@@ -212,7 +102,6 @@ export interface RemotelySavePluginSettings {
 
 export const COMMAND_URI = "remotely-save";
 export const COMMAND_CALLBACK = "remotely-save-cb";
-export const COMMAND_CALLBACK_ONEDRIVE = "remotely-save-cb-onedrive";
 export const COMMAND_CALLBACK_DROPBOX = "remotely-save-cb-dropbox";
 
 export interface UriParams {
