@@ -12,6 +12,11 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 
 ### Added
 
+- A route table for several remotes (`src/routes.ts`): each folder routes to
+  one remote or stays local only, by the longest whole-segment match, with a
+  default row for everything else; the refused setups, the per-remote reading
+  of the table, the ownership file's merge, and the hold rule for a routed
+  folder gone while the plugin wasn't watching.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a
