@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): skip the binary fixtures when they are Git LFS pointers
 import { strict as assert } from "assert";
 import * as fs from "fs";
 import * as path from "path";
@@ -11,6 +12,11 @@ import {
   getSizeFromOrigToEnc,
 } from "../src/encryptOpenSSL";
 import { base64ToBase64url, bufferToArrayBuffer } from "../src/misc";
+
+// A checkout without git-lfs holds only a pointer file in place of the fixture.
+const isLfsPointer = (filePath: string) =>
+  fs.readFileSync(filePath).subarray(0, 24).toString("utf-8") ===
+  "version https://git-lfs.";
 
 describe("Encryption OpenSSL tests", () => {
   beforeEach(() => {
@@ -77,10 +83,13 @@ describe("Encryption OpenSSL tests", () => {
     assert.equal(enc, opensslBase64urlRes);
   });
 
-  it("should encrypt binary file and get the same result as openssl", async () => {
+  it("should encrypt binary file and get the same result as openssl", async function () {
     const testFolder = path.join(__dirname, "static_assets", "mona_lisa");
     const testFileName =
       "1374px-Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg";
+    if (isLfsPointer(path.join(testFolder, testFileName))) {
+      this.skip();
+    }
     const fileArrBuf = bufferToArrayBuffer(
       await fs.readFileSync(path.join(testFolder, testFileName))
     );
@@ -115,10 +124,13 @@ describe("Encryption OpenSSL tests", () => {
     assert.ok(!Buffer.from(res1).equals(Buffer.from(res2)));
   });
 
-  it("should decrypt binary file and get the same result as openssl", async () => {
+  it("should decrypt binary file and get the same result as openssl", async function () {
     const testFolder = path.join(__dirname, "static_assets", "mona_lisa");
     const testFileName =
       "1374px-Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg";
+    if (isLfsPointer(path.join(testFolder, testFileName))) {
+      this.skip();
+    }
     const fileArrBuf = bufferToArrayBuffer(
       await fs.readFileSync(path.join(testFolder, testFileName + ".enc"))
     );
