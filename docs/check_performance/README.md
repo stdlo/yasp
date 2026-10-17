@@ -7,7 +7,3 @@
 5. You can also "Export Profiler Results" afterwards. A new file `_debug_remotely_save/profiler_results_exported_on_xxxx.md` will be generated.
 
 In the console or exported files, you can see the time cost of each steps.
-
-![profiler settings](./profiler_settings.png)
-
-![profiler exported](./profiler_exported.png)

@@ -6,13 +6,7 @@ Copyright fyears and the Remotely Save contributors.
 Changes for Remotely Save Lite copyright 2026 stdlo.
 
 Everything in this repository is released under the Apache License,
-Version 2.0, whose text follows, except for these files, which keep
-their own licenses:
-
-- `assets/branding/`: Creative Commons Attribution-ShareAlike 4.0
-  International, as its `LICENSE.txt` says.
-- `tests/static_assets/mona_lisa/`: as the `.LICENSE.txt` beside the
-  image says.
+Version 2.0, whose text follows.
 
 Upstream's source-available `pro/` folder is not part of this fork.
 

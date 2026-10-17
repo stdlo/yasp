@@ -90,9 +90,6 @@ Your notes sync to `/Apps/<your app's name>/<vault name>` in your Dropbox.
 - `npm run lint` runs oxlint and checks formatting; `npm run format` formats
   with oxfmt.
 
-The binary test fixtures and some images are stored with Git LFS; without
-`git lfs pull`, the two OpenSSL tests that need them are skipped.
-
 ## Disclaimer
 
 - **This is NOT the [official sync service](https://obsidian.md/sync) provided
