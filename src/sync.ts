@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments
+// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments, decision functions exported for tests
 import AggregateError from 'aggregate-error'
 import PQueue from 'p-queue'
 import XRegExp from 'xregexp'
@@ -144,7 +144,7 @@ const isSkipItemByName = (
 
 export type SyncPlanType = Record<string, MixedEntity>
 
-const ensembleMixedEnties = async (
+export const ensembleMixedEnties = async (
   localEntityList: Entity[],
   prevSyncEntityList: Entity[],
   remoteEntityList: Entity[],
@@ -282,7 +282,7 @@ const ensembleMixedEnties = async (
  * Basically follow the sync algorithm of https://github.com/Jwink3101/syncrclone
  * Also deal with syncDirection which makes it more complicated
  */
-const getSyncPlanInplace = async (
+export const getSyncPlanInplace = async (
   mixedEntityMappings: Record<string, MixedEntity>,
   howToCleanEmptyFolder: EmptyFolderCleanType,
   skipSizeLargerThan: number,
