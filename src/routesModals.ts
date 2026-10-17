@@ -55,6 +55,53 @@ class HeldQuestionModal extends Modal {
   }
 }
 
+/** The offer after a route change: delete the old remote's copies. */
+class RouteChangeModal extends Modal {
+  deleteThem = false
+
+  constructor(
+    app: App,
+    readonly folder: string,
+    readonly oldRemote: string,
+    readonly done: (deleteThem: boolean) => void,
+  ) {
+    super(app)
+  }
+
+  onOpen() {
+    this.contentEl.createEl('p', {
+      text: `"${this.folder}" no longer syncs with ${this.oldRemote}. Delete its copies there? Otherwise they stay, no longer updated.`,
+    })
+    new Setting(this.contentEl)
+      .addButton((b) =>
+        b
+          .setButtonText(`Delete from ${this.oldRemote}`)
+          .setWarning()
+          .onClick(() => {
+            this.deleteThem = true
+            this.close()
+          }),
+      )
+      .addButton((b) =>
+        b.setButtonText('Keep them').onClick(() => this.close()),
+      )
+  }
+
+  onClose() {
+    this.contentEl.empty()
+    this.done(this.deleteThem)
+  }
+}
+
+export const askDeleteOldCopies = (
+  app: App,
+  folder: string,
+  oldRemote: string,
+) =>
+  new Promise<boolean>((resolve) => {
+    new RouteChangeModal(app, folder, oldRemote, resolve).open()
+  })
+
 export const askHeldQuestion = (app: App, q: HeldQuestion) =>
   new Promise<HeldAnswer | undefined>((resolve) => {
     new HeldQuestionModal(app, q, resolve).open()

@@ -58,7 +58,12 @@ import {
 } from './remotes'
 import { DEFAULT_PROFILER_CONFIG, Profiler } from './profiler'
 import { RemotelySaveSettingTab } from './settings'
-import { recordFolderRename, syncAllRemotes } from './multiSync'
+import {
+  type RemoteResult,
+  recordFolderRename,
+  syncAllRemotes,
+} from './multiSync'
+import { remoteDetail, remoteMarks } from './statusBar'
 import { askHeldQuestion } from './routesModals'
 import { SyncAlgoV3Modal } from './syncAlgoV3Notice'
 
@@ -155,6 +160,10 @@ export default class RemotelySavePlugin extends Plugin {
   isSyncing!: boolean
   hasPendingSyncOnSave!: boolean
   statusBarElement!: HTMLSpanElement
+  /** each remote's last result, for the status bar */
+  remoteResults = new Map<string, RemoteResult>()
+  /** the remote whose run is going, by name */
+  syncingRemote?: string
   oauth2Info!: OAuth2Info
   currLogLevel!: string
   currSyncMsg?: string
@@ -442,6 +451,13 @@ export default class RemotelySavePlugin extends Plugin {
         saveSettings: async () => await this.saveSettings(),
         notice: (msg) => new Notice(msg, 10 * 1000),
         askHeld: async (q) => await askHeldQuestion(this.app, q),
+        onRemoteStart: (remote) => {
+          this.syncingRemote =
+            (this.settings.remotes ?? []).length > 1 ? remote.name : undefined
+        },
+        onRemoteResult: (remote, result) => {
+          this.remoteResults.set(remote.id, result)
+        },
         runCallbacks: {
           notifyFunc,
           errNotifyFunc,
@@ -452,6 +468,7 @@ export default class RemotelySavePlugin extends Plugin {
         },
       })
     } finally {
+      this.syncingRemote = undefined
       await markIsSyncingFunc(false)
     }
 
@@ -688,6 +705,17 @@ export default class RemotelySavePlugin extends Plugin {
       const statusBarItem = this.addStatusBarItem()
       this.statusBarElement = statusBarItem.createEl('span')
       this.statusBarElement.setAttribute('data-tooltip-position', 'top')
+      // the per-remote detail: last run, result, last error, a held question
+      statusBarItem.onClickEvent(() => {
+        if ((this.settings.remotes ?? []).length > 1) {
+          new Notice(
+            remoteDetail(this.settings.remotes ?? [], this.remoteResults).join(
+              '\n',
+            ),
+            15 * 1000,
+          )
+        }
+      })
 
       if (!this.isSyncing) {
         this.updateLastSyncMsg(
@@ -1273,7 +1301,10 @@ export default class RemotelySavePlugin extends Plugin {
     const isSuccess =
       (lastSuccessSyncMillis ?? -999) >= (lastFailedSyncMillis ?? -999)
 
-    if (syncStatus === 'syncing') {
+    if (syncStatus === 'syncing' && this.syncingRemote !== undefined) {
+      // several remotes: which one is running
+      lastSyncMsg = `Syncing ${this.syncingRemote}…`
+    } else if (syncStatus === 'syncing') {
       lastSyncMsg =
         getStatusBarShortMsgFromSyncSource(t, s!) + t('statusbar_syncing')
     } else if (inputTs > 0) {
@@ -1328,6 +1359,11 @@ export default class RemotelySavePlugin extends Plugin {
       // TODO: no idea what happened.
     }
 
+    if (syncStatus !== 'syncing') {
+      const marks = remoteMarks(this.settings.remotes ?? [], this.remoteResults)
+      lastSyncMsg += marks.text
+      lastSyncLabelMsg += marks.label
+    }
     this.statusBarElement.setText(lastSyncMsg)
     this.statusBarElement.setAttribute('aria-label', lastSyncLabelMsg)
   }

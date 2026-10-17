@@ -540,6 +540,23 @@ export const moveProfileRecords = async (
   return moved
 }
 
+/** Clears a profile's records and sync bases for the paths `drop` picks. */
+export const clearProfileRecords = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  profileID: string,
+  drop: (key: string) => boolean,
+) => {
+  const prefix = `${vaultRandomID}\t${profileID}\t`
+  for (const tbl of [db.prevSyncRecordsTbl, db.syncBasesTbl]) {
+    for (const dbKey of await tbl.keys()) {
+      if (dbKey.startsWith(prefix) && drop(dbKey.slice(prefix.length))) {
+        await tbl.removeItem(dbKey)
+      }
+    }
+  }
+}
+
 export const getSyncBaseByVaultAndProfile = async (
   db: InternalDBs,
   vaultRandomID: string,

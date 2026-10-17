@@ -40,6 +40,15 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   branch rebuilt with only the paths changed there dropped, file times kept
   in `.remotely-save-lite/times.json`, and a routed folder renamed in one
   commit. Encryption on a GitHub remote is refused for now.
+- The settings page's "Remotes and routes": each remote read from the table
+  ("everything except …", "only …") with its on/off switch, a GitHub
+  remote's owner, repo, branch, token, folder, and connection check, and the
+  table's rows, saved only when the setup isn't refused (the reason shown).
+  A route change forgets the old remote's records under the folder and
+  offers to delete its copies there.
+- The status bar marks each remote's last run when there are several
+  (`Dropbox ✓ · GitHub ✗`, the error on hover), names the remote syncing,
+  and opens the per-remote detail on a click.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a

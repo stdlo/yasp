@@ -15,6 +15,7 @@ import type { FakeFsEncrypt } from './fsEncrypt'
 import {
   type InternalDBs,
   clearPrevSyncRecordByVaultAndProfile,
+  clearProfileRecords,
   getAllPrevSyncRecordsByVaultAndProfile,
   moveProfileRecords,
   upsertPrevSyncRecordByVaultAndProfile,
@@ -36,6 +37,7 @@ import {
   ownershipFor,
   renameRoute,
   routeFilterFor,
+  routeOf,
 } from './routes'
 import type { Profiler } from './profiler'
 import { syncer } from './sync'
@@ -230,6 +232,54 @@ export const recordFolderRename = (
     { from, to, done: [] },
   ]
   return true
+}
+
+/** The folders whose target a table change moves, old target and new. */
+export const routeChanges = (before: RouteTable, after: RouteTable) => {
+  const folders = new Set([
+    ...before.routes.map((r) => r.folder),
+    ...after.routes.map((r) => r.folder),
+  ])
+  const res: { folder: string; from?: string; to?: string }[] = []
+  for (const folder of folders) {
+    const from = routeOf(before, `${folder}/`)
+    const to = routeOf(after, `${folder}/`)
+    if (from !== to) {
+      res.push({ folder, from, to })
+    }
+  }
+  return res
+}
+
+/**
+ * After a route change, the old remote's records under the folder go, so
+ * its copies are neither deleted nor pulled back by a later run.
+ */
+export const forgetFolder = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  remote: RemoteConfig,
+  folder: string,
+) =>
+  await clearProfileRecords(db, vaultRandomID, profileIdOf(remote), (key) =>
+    isUnder(key.replace(/\/+$/, ''), folder),
+  )
+
+/** Deletes a folder's copies on a remote, after a route change. */
+export const deleteRemoteFolder = async (fs: FakeFs, folder: string) => {
+  const keys = (await fs.walk())
+    .map((e) => e.key!)
+    .filter((k) => isUnder(k.replace(/\/+$/, ''), folder))
+    // files first, then folders, deepest first
+    .sort(
+      (a, b) =>
+        Number(a.endsWith('/')) - Number(b.endsWith('/')) ||
+        b.length - a.length,
+    )
+  for (const key of keys) {
+    await fs.rm(key)
+  }
+  await fs.finishSync?.()
 }
 
 /**

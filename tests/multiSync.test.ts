@@ -9,9 +9,13 @@ import type { FakeFsEncrypt } from '../src/fsEncrypt'
 import type { InternalDBs } from '../src/localdb'
 import {
   type MultiSyncDeps,
+  deleteRemoteFolder,
+  forgetFolder,
   recordFolderRename,
+  routeChanges,
   syncAllRemotes,
 } from '../src/multiSync'
+import { remoteMarks } from '../src/statusBar'
 import { OWNERSHIP_FILE_KEY } from '../src/routes'
 
 // The orchestrator over the real engine: two in-memory remotes, an in-memory
@@ -519,5 +523,45 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
     assert.deepEqual(userKeys(working), ['work/w.md'])
     assert.deepEqual(w.local.keys(), ['work/w.md'])
+  })
+
+  it('moves a folder to another remote on a route change', async () => {
+    const w = world(settingsWith([remote('a'), remote('b')], []))
+    w.local.put('n.md', 'n')
+    w.local.put('work/w.md', 'w')
+    await sync(w)
+    assert.deepEqual(userKeys(w.fs.a), ['n.md', 'work/w.md'])
+    const before = w.settings.routes!
+    const after = { ...before, routes: [{ folder: 'work', target: 'b' }] }
+    assert.deepEqual(routeChanges(before, after), [
+      { folder: 'work', from: 'a', to: 'b' },
+    ])
+    w.settings.routes = after
+    w.settings.routesUpdatedAt = 2
+    await forgetFolder(w.db, VAULT, w.settings.remotes![0], 'work')
+    await deleteRemoteFolder(w.fs.a, 'work')
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(userKeys(w.fs.a), ['n.md'])
+    assert.deepEqual(userKeys(w.fs.b), ['work/w.md'])
+    assert.deepEqual(w.local.keys(), ['n.md', 'work/w.md'])
+  })
+
+  it('marks each remote in the status bar', () => {
+    const remotes = [
+      remote('a', { name: 'Dropbox' }),
+      remote('b', { name: 'GitHub' }),
+    ]
+    const results = new Map([
+      ['a', { status: 'ok' as const, at: 1 }],
+      ['b', { status: 'failed' as const, at: 1, error: 'offline' }],
+    ])
+    assert.deepEqual(remoteMarks(remotes, results), {
+      text: ' · Dropbox ✓ · GitHub ✗',
+      label: '\nGitHub: offline',
+    })
+    assert.deepEqual(remoteMarks(remotes.slice(0, 1), results), {
+      text: '',
+      label: '',
+    })
   })
 })

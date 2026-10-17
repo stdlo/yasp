@@ -53,6 +53,7 @@ import {
   stringToFragment,
 } from './misc'
 import { DEFAULT_PROFILER_CONFIG } from './profiler'
+import { renderRemotesSettings } from './settingsRemotes'
 
 class PasswordModal extends Modal {
   plugin: RemotelySavePlugin
@@ -811,6 +812,14 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           })
       })
+
+    //////////////////////////////////////////////////
+    // below for several remotes and their routes
+    //////////////////////////////////////////////////
+
+    renderRemotesSettings(containerEl, this.app, this.plugin, () =>
+      this.display(),
+    )
 
     //////////////////////////////////////////////////
     // below for basic settings
