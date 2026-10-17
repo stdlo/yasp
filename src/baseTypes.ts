@@ -5,7 +5,7 @@
  */
 
 import type { LangTypeAndAuto } from './i18n'
-import type { RouteTable } from './routes'
+import type { PendingRename, RouteTable } from './routes'
 
 declare global {
   var DEFAULT_DROPBOX_APP_KEY: string
@@ -118,6 +118,8 @@ export interface RemotelySavePluginSettings {
   routes?: RouteTable
   /** when this device's table last changed, against the ownership files */
   routesUpdatedAt?: number
+  /** routed folders renamed in the vault, for the next sync to finish */
+  pendingRenames?: PendingRename[]
 
   /**
    * @deprecated

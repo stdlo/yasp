@@ -58,7 +58,8 @@ import {
 } from './remotes'
 import { DEFAULT_PROFILER_CONFIG, Profiler } from './profiler'
 import { RemotelySaveSettingTab } from './settings'
-import { syncer } from './sync'
+import { recordFolderRename, syncAllRemotes } from './multiSync'
+import { askHeldQuestion } from './routesModals'
 import { SyncAlgoV3Modal } from './syncAlgoV3Notice'
 
 const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
@@ -183,22 +184,9 @@ export default class RemotelySavePlugin extends Plugin {
       profiler,
       this.settings.deleteToWhere ?? 'system',
     )
-    const fsRemote = getClient(
-      this.settings,
-      this.app.vault.getName(),
-      async () => await this.saveSettings(),
-    )
-    const fsEncrypt = new FakeFsEncrypt(
-      fsRemote,
-      this.settings.password ?? '',
-      this.settings.encryptionMethod ?? 'rclone-base64',
-    )
-
     const t = (x: TransItemType, vars?: any) => {
       return this.i18n.t(x, vars)
     }
-
-    const profileID = profileIdOf(this.settings.remotes![0])
 
     const getProtectError = (
       protectModifyPercentage: number,
@@ -426,28 +414,45 @@ export default class RemotelySavePlugin extends Plugin {
       return
     }
 
-    await syncer(
-      fsLocal,
-      fsRemote,
-      fsEncrypt,
-      profiler,
-      this.db,
-      triggerSource,
-      profileID,
-      this.vaultRandomID,
-      this.app.vault.configDir,
-      this.settings,
-      getProtectError,
-      markIsSyncingFunc,
-      notifyFunc,
-      errNotifyFunc,
-      ribboonFunc,
-      statusBarFunc,
-      callbackSyncProcess,
-      callbackConflictCopy,
-    )
+    // one lock over every remote's run, which sync-on-save checks too
+    await markIsSyncingFunc(true)
+    try {
+      await syncAllRemotes(this.settings, {
+        fsLocal,
+        db: this.db,
+        vaultRandomID: this.vaultRandomID,
+        configDir: this.app.vault.configDir,
+        triggerSource,
+        profiler,
+        makeFs: (remote, slice) =>
+          getClient(
+            slice,
+            this.app.vault.getName(),
+            async () => await this.saveSettings(),
+          ),
+        makeEncrypt: (fs, slice) =>
+          new FakeFsEncrypt(
+            fs,
+            slice.password ?? '',
+            slice.encryptionMethod ?? 'rclone-base64',
+          ),
+        getProtectError,
+        saveSettings: async () => await this.saveSettings(),
+        notice: (msg) => new Notice(msg, 10 * 1000),
+        askHeld: async (q) => await askHeldQuestion(this.app, q),
+        runCallbacks: {
+          notifyFunc,
+          errNotifyFunc,
+          ribboonFunc,
+          statusBarFunc,
+          callbackSyncProcess,
+          callbackConflictCopy,
+        },
+      })
+    } finally {
+      await markIsSyncingFunc(false)
+    }
 
-    fsEncrypt.closeResources()
     ;(profiler as Profiler | undefined)?.clear()
 
     this.syncEvent?.trigger('SYNC_DONE')
@@ -533,6 +538,19 @@ export default class RemotelySavePlugin extends Plugin {
 
     // must AFTER preparing DB
     this.enableAutoClearSyncPlanHist()
+
+    // A routed folder renamed in Obsidian: the route follows, and the next
+    // sync renames it on its remote and in its records before it runs.
+    this.registerEvent(
+      this.app.vault.on('rename', async (file, oldPath) => {
+        if (
+          file instanceof TFolder &&
+          recordFolderRename(this.settings, oldPath, file.path, Date.now())
+        ) {
+          await this.saveSettings()
+        }
+      }),
+    )
 
     this.registerObsidianProtocolHandler(COMMAND_URI, async (inputParams) => {
       // console.debug(inputParams);

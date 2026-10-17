@@ -25,6 +25,15 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 - Two engine hooks, both unused by a single remote: a route filter applied
   beside `ignorePaths`, and `FakeFs.finishSync()`, called once the plan has
   run, for a remote that commits its writes in one batch.
+- Several remotes in one sync (`src/multiSync.ts`): under the one sync lock,
+  each enabled remote runs in turn with its own settings, profile, and route
+  filter, and one failing doesn't stop the next. Before the runs: routed
+  folders renamed in Obsidian are renamed on their remote and in its
+  records; the remotes' ownership files are compared, a newer one adopted
+  with a notice and a contradiction stopping the runs; and a routed folder
+  gone while the plugin wasn't watching holds its runs and asks once. After
+  a run, the records of anything a batching remote didn't commit go back to
+  what they were.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a

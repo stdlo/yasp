@@ -333,6 +333,14 @@ export const heldQuestions = (
   return res
 }
 
+/** A routed folder renamed in the vault, applied before the next runs. */
+export interface PendingRename {
+  from: string
+  to: string
+  /** the remotes whose folder and records are renamed already */
+  done: string[]
+}
+
 /** The table after a routed folder (and the routes under it) is renamed. */
 export const renameRoute = (
   table: RouteTable,
