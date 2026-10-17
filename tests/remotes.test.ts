@@ -95,6 +95,22 @@ describe('Remotes: the migration from one remote', () => {
     assert.equal(run.syncConfigDir, false)
   })
 
+  it('refuses an encrypted GitHub remote', () => {
+    const s = single()
+    migrateToRemotes(s)
+    // no password of its own: it would inherit the top-level one
+    s.remotes!.push({
+      id: 'gh',
+      name: 'GitHub',
+      type: 'github',
+      enabled: true,
+      syncConfigDir: false,
+    })
+    assert.equal(refusedSettings(s).length, 1)
+    s.remotes![1].password = ''
+    assert.deepEqual(refusedSettings(s), [])
+  })
+
   it('moves the records to the new profile', async () => {
     const db = {
       prevSyncRecordsTbl: new MemTable(),

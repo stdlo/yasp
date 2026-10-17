@@ -92,6 +92,16 @@ export const refusedSettings = (settings: RemotelySavePluginSettings) => {
   if (new Set(ids).size !== ids.length) {
     reasons.push('Two remotes have the same id.')
   }
+  // a batched commit's rollback finds its records by vault path, which an
+  // encrypted remote doesn't keep: until it does, GitHub syncs unencrypted
+  for (const remote of settings.remotes ?? []) {
+    if (
+      remote.type === 'github' &&
+      (settingsForRemote(settings, remote).password ?? '') !== ''
+    ) {
+      reasons.push(`${remote.name}: a GitHub remote can't be encrypted yet.`)
+    }
+  }
   const names = (settings.remotes ?? []).map((r) => r.name)
   if (new Set(names).size !== names.length) {
     reasons.push('Two remotes have the same name.')

@@ -34,6 +34,12 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   gone while the plugin wasn't watching holds its runs and asks once. After
   a run, the records of anything a batching remote didn't commit go back to
   what they were.
+- A GitHub remote (`src/fsGithub.ts`) over GitHub's REST API through
+  Obsidian's `requestUrl`: one listing of the branch head's tree, every
+  write in a run staged as a blob and committed once at its end, a moved
+  branch rebuilt with only the paths changed there dropped, file times kept
+  in `.remotely-save-lite/times.json`, and a routed folder renamed in one
+  commit. Encryption on a GitHub remote is refused for now.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a

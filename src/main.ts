@@ -429,6 +429,8 @@ export default class RemotelySavePlugin extends Plugin {
             slice,
             this.app.vault.getName(),
             async () => await this.saveSettings(),
+            remote.github,
+            (msg) => new Notice(msg, 10 * 1000),
           ),
         makeEncrypt: (fs, slice) =>
           new FakeFsEncrypt(
