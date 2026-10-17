@@ -1,5 +1,4 @@
-// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids
-// biome-ignore lint/suspicious/noShadowRestrictedNames: <explanation>
+// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids, no Biome comments
 import AggregateError from "aggregate-error";
 import cloneDeep from "lodash/cloneDeep";
 import throttle from "lodash/throttle";

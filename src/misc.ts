@@ -1,3 +1,4 @@
+// Changed for Remotely Save Lite (2026): no Biome comments
 import * as path from "path";
 import type { Vault } from "obsidian";
 
@@ -607,7 +608,7 @@ export const changeMobileStatusBar = (
     if (oldAppContainerObserver !== undefined) {
       console.debug(`disconnect oldAppContainerObserver`);
       oldAppContainerObserver.disconnect();
-      // biome-ignore lint/style/noParameterAssign: we want gc
+      // We want gc.
       oldAppContainerObserver = undefined;
     }
     statusbar.style.removeProperty("display");

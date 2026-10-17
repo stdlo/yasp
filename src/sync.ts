@@ -1,5 +1,4 @@
-// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed
-// biome-ignore lint/suspicious/noShadowRestrictedNames: <explanation>
+// Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments
 import AggregateError from "aggregate-error";
 import PQueue from "p-queue";
 import XRegExp from "xregexp";

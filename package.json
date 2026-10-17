@@ -3,11 +3,10 @@
   "version": "0.6.0",
   "description": "Sync your Obsidian vault with Dropbox. A free fork of Remotely Save 0.5.25.",
   "scripts": {
-    "dev2": "node esbuild.config.mjs --watch",
-    "build2": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
-    "format": "npx @biomejs/biome check --write .",
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxfmt",
     "clean": "npx rimraf main.js",
     "test": "mocha --import=tsx 'tests/**/*.ts'"
   },
@@ -25,7 +24,6 @@
   "author": "stdlo",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
     "@types/chai": "^4.3.16",
     "@types/chai-as-promised": "^7.1.8",
     "@types/jsdom": "^21.1.7",
@@ -37,16 +35,17 @@
     "builtin-modules": "^4.0.0",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
-    "esbuild": "^0.23.0",
-    "esbuild-plugin-inline-worker": "^0.1.1",
     "jsdom": "^24.1.1",
     "mocha": "^10.7.0",
     "npm-check-updates": "^16.14.20",
     "obsidian": "^1.5.7",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "terser-webpack-plugin": "^5.3.10",
     "ts-loader": "^9.5.1",
     "tslib": "^2.6.3",
     "tsx": "^4.16.2",
-    "typescript": "^5.5.4",
+    "typescript": "~5.5.4",
     "webpack": "^5.93.0",
     "webpack-cli": "^5.1.4",
     "worker-loader": "^3.0.8"
@@ -78,5 +77,8 @@
     "url": "^0.11.4",
     "util": "^0.12.5",
     "xregexp": "^5.1.1"
+  },
+  "overrides": {
+    "clean-stack": "5.2.0"
   }
 }

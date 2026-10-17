@@ -1,10 +1,10 @@
+# Changed for Remotely Save Lite (2026): the lock file, the tool configs, and tmp/
 # Intellij
 *.iml
 .idea
 
 # npm
 node_modules
-package-lock.json
 pnpm-lock.yaml
 
 # build
@@ -17,5 +17,13 @@ data.json
 # debug
 logs.txt
 
-# hidden files
+# Scratch
+tmp/
+
+# hidden files, except the project's own config
 .*
+!.gitignore
+!.node-version
+!.oxlintrc.json
+!.oxfmtrc.json
+!.git-blame-ignore-revs
