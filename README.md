@@ -9,7 +9,8 @@ didn't mean can lose notes.
 Remotely Save Lite is a free fork of
 [Remotely Save](https://github.com/remotely-save/remotely-save) 0.5.25, an
 unofficial plugin that syncs an Obsidian vault with a cloud service. It keeps
-the free, Apache-2.0 plugin going with Dropbox.
+the free, Apache-2.0 plugin going with Dropbox, and adds GitHub as a second
+remote.
 
 ## Why
 
@@ -28,6 +29,8 @@ the free, Apache-2.0 plugin going with Dropbox.
   backends); the settings the free engine can't honour (only-allow paths,
   bookmark sync, and the "and delete" directions); and the CLA.
 - **Rebuilt:** Smart Conflict, written fresh (see below).
+- **Added:** several remotes at once, each folder routed to one of them, and a
+  GitHub remote (see "Several remotes", below).
 - **Restored:** the sync engine, from upstream's Apache-2.0 history before it
   moved into `pro/`, without its paid hooks. Tests now pin the engine's
   decision for each file.
@@ -83,6 +86,56 @@ Your notes sync to `/Apps/<your app's name>/<vault name>` in your Dropbox.
   Blob Storage, and OneDrive with full access) aren't rebuilt. A backend can be
   added through the `FakeFs` interface (`src/fsAll.ts`): one member of
   `SUPPORTED_SERVICES_TYPE`, one `src/fs*.ts`, and one part of the settings.
+
+## Several remotes
+
+One vault can sync with more than one remote at once, each folder going to
+exactly one of them: for example everything to Dropbox except `work`, and
+`work` to a private GitHub repo. The design is in
+[`docs/design.md`](./docs/design.md).
+
+**What syncs where:** the settings page's "Remotes and routes" holds a table
+of routes, `folder → remote` (or `→ local only`), and a default row for
+everything no route names, root files included. The longest matching folder
+wins, on whole path segments, so `areas → Dropbox` and `areas/job → GitHub`
+can sit together. Above the table, each remote reads what it gets
+("everything except `work`", "only `work`"). A setup where a folder could
+reach two remotes, or a route names a remote that doesn't exist, isn't saved.
+
+- Each sync runs every enabled remote in turn; one failing doesn't stop the
+  others. The status bar marks each one (`Dropbox ✓ · GitHub ✗`); click it for
+  the detail.
+- A folder routed to a remote that's switched off syncs nowhere until it's on
+  again.
+- Rename a routed folder in Obsidian and its route follows; the next sync
+  renames it on its remote too. A routed folder that disappears while
+  Obsidian wasn't watching (renamed in a file manager, say) holds that
+  remote's sync and asks once what happened, rather than deleting anything.
+- Each remote keeps `.remotely-save-lite/routes.json`, the folders it owns, so
+  another device sees a route change made here.
+- With one remote and no routes, the plugin syncs exactly as a single-remote
+  setup always has.
+
+**Set up GitHub:**
+
+1. Create a **private** repository with at least one commit (a README will do).
+2. Create a
+   [fine-grained personal access token](https://github.com/settings/personal-access-tokens)
+   for that one repository only, with the repository permission **Contents:
+   Read and write** and nothing else. Give it an expiry date.
+3. In "Remotes and routes", choose "Add a GitHub remote", fill in the owner,
+   the repository, the branch, and the token, and optionally a folder inside
+   the repository. Check the connection, add a route for the folders that go
+   there, save the routes, and switch the remote on.
+
+Each sync makes at most one commit (`Sync from <vault>, <n> changes`). The
+token stays on the device in the plugin's `data.json` and is never logged.
+Encryption isn't available on a GitHub remote yet, so the repository holds
+your notes as plain text: keep it private. Files over 100 MB can't be stored.
+
+**Whether you may keep work notes in a personal GitHub repository is your
+employer's policy, not a technical question.** Check it before routing a work
+folder there.
 
 ## Development
 

@@ -50,6 +50,10 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 - The status bar marks each remote's last run when there are several
   (`Dropbox ✓ · GitHub ✗`, the error on hover), names the remote syncing,
   and opens the per-remote detail on a click.
+- The routing's design (`docs/design.md`), a click-through list for trying
+  several remotes and the GitHub remote on a scratch vault
+  (`docs/click-through.md`), and a README section, "Several remotes", with
+  how to set up GitHub.
 - Smart Conflict, rebuilt from upstream's public description and now the
   default conflict choice. A Markdown file of 64 KB or less changed on both
   sides is merged by lines from its last-synced copy; any other conflict, or a
@@ -76,7 +80,8 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 - The source-available `pro/` folder and everything that used it: the paid
   account, upstream's Smart Conflict (rebuilt, above), file content history,
   and the paid backends.
-- The S3, WebDAV, Webdis, and OneDrive backends. Dropbox is the one backend.
+- The S3, WebDAV, Webdis, and OneDrive backends. Dropbox is the one backend
+  kept.
 - The settings the restored engine can't honour: only-allow paths, bookmark
   sync, and the "and delete" sync directions.
 - The CLA.
