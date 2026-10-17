@@ -292,11 +292,26 @@ const checkOwnership = async (
   runs: Run[],
   deps: MultiSyncDeps,
 ) => {
-  // an encrypted remote keeps no routes file: it would sit there in clear
-  const owning = runs.filter((r) => !hasPassword(r.settings))
+  // an encrypted remote's routes file goes through its encryption, which
+  // needs a listing first to know the remote's names
+  const owning: { run: Run; io: FakeFs; close?: () => void }[] = []
+  for (const run of runs) {
+    if (!hasPassword(run.settings)) {
+      owning.push({ run, io: run.fs })
+      continue
+    }
+    const enc = deps.makeEncrypt(run.fs, run.settings)
+    try {
+      await enc.walk()
+      owning.push({ run, io: enc, close: () => enc.closeResources() })
+    } catch (e) {
+      // unreachable: its run reports the failure
+      enc.closeResources()
+    }
+  }
   const files: OwnershipFile[] = []
-  for (const run of owning) {
-    const file = await readOwnership(run.fs)
+  for (const { io } of owning) {
+    const file = await readOwnership(io)
     if (file !== undefined) {
       files.push(file)
     }
@@ -308,7 +323,13 @@ const checkOwnership = async (
     refs,
     files,
   )
+  const closeAll = () => {
+    for (const o of owning) {
+      o.close?.()
+    }
+  }
   if (merged.kind === 'contradiction') {
+    closeAll()
     return `The folder "${merged.folder}" is owned by ${merged.owners.join(' and ')}. Fix the routes in the settings.`
   }
   if (merged.kind === 'adopt') {
@@ -319,7 +340,7 @@ const checkOwnership = async (
       `Routes updated from another device: ${merged.changes.join('; ')}.`,
     )
   }
-  for (const run of owning) {
+  for (const { run, io } of owning) {
     const mine = ownershipFor(
       settings.routes!,
       refs.find((r) => r.id === run.remote.id)!,
@@ -328,12 +349,13 @@ const checkOwnership = async (
     const theirs = files.find((f) => f.remote === run.remote.name)
     if (JSON.stringify(theirs) !== JSON.stringify(mine)) {
       try {
-        await writeOwnership(run.fs, mine)
+        await writeOwnership(io, mine)
       } catch (e) {
         // that remote's run reports the failure; the next sync writes again
       }
     }
   }
+  closeAll()
   return undefined
 }
 

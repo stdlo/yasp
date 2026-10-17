@@ -204,6 +204,38 @@ const plainEncrypt = (inner: FakeFs) =>
     closeResources: () => {},
   }) as unknown as FakeFsEncrypt
 
+/**
+ * A stand-in for encryption with a password: every name on the remote sits
+ * under `enc/`, so a file that skipped the layer is plain to see.
+ */
+const prefixEncrypt = (inner: FakeFs) => {
+  const P = 'enc/'
+  return {
+    innerFs: inner,
+    isPasswordOk: async () => ({ ok: true, reason: 'ok' }),
+    encryptEntity: async (e: Entity) => ({
+      ...e,
+      keyEnc: `${P}${e.key}`,
+      sizeEnc: e.size,
+    }),
+    walk: async () =>
+      (await inner.walk())
+        .filter((e) => e.key!.startsWith(P) && e.key !== P)
+        .map((e) => {
+          const key = e.key!.slice(P.length)
+          return { ...e, key, keyRaw: key, keyEnc: e.key, sizeEnc: e.size }
+        }),
+    mkdir: async (key: string) => await inner.mkdir(`${P}${key}`),
+    writeFile: async (key: string, c: ArrayBuffer, m: number, ct: number) => {
+      const e = await inner.writeFile(`${P}${key}`, c, m, ct)
+      return { ...e, key, keyRaw: key }
+    },
+    readFile: async (key: string) => await inner.readFile(`${P}${key}`),
+    rm: async (key: string) => await inner.rm(`${P}${key}`),
+    closeResources: () => {},
+  } as unknown as FakeFsEncrypt
+}
+
 class MemTable {
   items = new Map<string, unknown>()
   async getItem(key: string) {
@@ -305,7 +337,8 @@ const sync = async (w: World) => {
     configDir: '.obsidian',
     triggerSource: 'manual',
     makeFs: (r) => w.fs[r.id],
-    makeEncrypt: (fs) => plainEncrypt(fs),
+    makeEncrypt: (fs, s) =>
+      (s.password ?? '') === '' ? plainEncrypt(fs) : prefixEncrypt(fs),
     getProtectError: () => 'too many changes',
     saveSettings: async () => {},
     askHeld: async () => {
@@ -502,6 +535,36 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
     assert.deepEqual(userKeys(w.fs.b), ['notes/x.md'])
     assert.deepEqual(userKeys(w.fs.a), [])
+  })
+
+  it("keeps an encrypted remote's routes file through its encryption", async () => {
+    const w = world(
+      settingsWith(
+        [remote('a', { password: 'pw' }), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('work/w.md', 'w')
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    // written under the encrypted names, never in the clear
+    assert.equal(w.fs.a.text(OWNERSHIP_FILE_KEY), undefined)
+    assert.ok(w.fs.a.text(`enc/${OWNERSHIP_FILE_KEY}`) !== undefined)
+    assert.deepEqual(userKeys(w.fs.a), [
+      'enc/.remotely-save-lite/routes.json',
+      'enc/n.md',
+    ])
+    // and read back: a newer one from another device is adopted
+    w.fs.a.put(
+      `enc/${OWNERSHIP_FILE_KEY}`,
+      JSON.stringify({ remote: 'a', folders: ['work'], updatedAt: 9 }),
+    )
+    w.fs.b.put(
+      OWNERSHIP_FILE_KEY,
+      JSON.stringify({ remote: 'b', folders: [], updatedAt: 9 }),
+    )
+    await sync(w)
+    assert.equal(w.settings.routes?.routes[0].target, 'a')
   })
 
   it('rolls back the records of a failed commit', async () => {

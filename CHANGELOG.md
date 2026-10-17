@@ -29,7 +29,8 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   each enabled remote runs in turn with its own settings, profile, and route
   filter, and one failing doesn't stop the next. Before the runs: routed
   folders renamed in Obsidian are renamed on their remote and in its
-  records; the remotes' ownership files are compared, a newer one adopted
+  records; the remotes' ownership files (encrypted on an encrypted remote)
+  are compared, a newer one adopted
   with a notice and a contradiction stopping the runs; and a routed folder
   gone while the plugin wasn't watching holds its runs and asks once. After
   a run, the records of anything a batching remote didn't commit go back to
