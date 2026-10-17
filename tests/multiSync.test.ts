@@ -159,6 +159,16 @@ class MemFs extends FakeFs {
   }
 }
 
+/** A remote that refuses to rename a folder it doesn't hold, as Dropbox does. */
+class StrictRenameFs extends MemFs {
+  async rename(key1: string, key2: string): Promise<void> {
+    if (!this.keys().some((k) => k.startsWith(key1))) {
+      throw Error(`${key1} not found`)
+    }
+    await super.rename(key1, key2)
+  }
+}
+
 /** A remote that stages its writes and fails to commit them. */
 class FailingCommitFs extends MemFs {
   staged: string[] = []
@@ -443,6 +453,36 @@ describe('Several remotes: the orchestrator', () => {
     // the routes file is the only write
     assert.equal(w.fs.b.writes, 1)
     assert.deepEqual(userKeys(w.fs.a), ['n.md'])
+    assert.deepEqual(w.settings.pendingRenames, [])
+  })
+
+  it('finishes a rename the remote already made before a crash', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+      { a: new MemFs(), b: new StrictRenameFs() },
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('work/w1.md', '1')
+    w.local.put('work/w2.md', '2')
+    await sync(w)
+    for (const key of ['work/w1.md', 'work/w2.md']) {
+      w.local.files.set(key.replace('work/', 'job/'), w.local.files.get(key)!)
+      w.local.files.delete(key)
+    }
+    recordFolderRename(w.settings, 'work', 'job', 2)
+    // the remote rename went through, then the plugin stopped before the
+    // records moved
+    await w.fs.b.rename('work/', 'job/')
+    w.fs.b.writes = 0
+    w.fs.b.removes = 0
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(userKeys(w.fs.b), ['job/w1.md', 'job/w2.md'])
+    assert.equal(w.fs.b.removes, 0)
+    // the routes file is the only write
+    assert.equal(w.fs.b.writes, 1)
     assert.deepEqual(w.settings.pendingRenames, [])
   })
 

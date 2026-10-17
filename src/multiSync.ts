@@ -151,6 +151,17 @@ interface Run {
   profileID: string
 }
 
+/** Whether a remote holds nothing under `from` and something under `to`. */
+const isRenamedOn = async (fs: FakeFs, from: string, to: string) => {
+  let keys: string[]
+  try {
+    keys = (await fs.walk()).map((e) => e.key!.replace(/\/+$/, ''))
+  } catch (e) {
+    return false
+  }
+  return !keys.some((k) => isUnder(k, from)) && keys.some((k) => isUnder(k, to))
+}
+
 /**
  * Applies the routed-folder renames recorded since the last sync: per
  * remote, the folder renamed on the remote, then that profile's records.
@@ -183,8 +194,15 @@ const applyPendingRenames = async (
         try {
           await run.fs.rename(`${rename.from}/`, `${rename.to}/`)
         } catch (e: any) {
-          failed.set(run.remote.id, `rename ${rename.from}: ${e?.message ?? e}`)
-          continue
+          // a crash between the remote rename and the records move leaves
+          // the remote already renamed: go on to the records
+          if (!(await isRenamedOn(run.fs, rename.from, rename.to))) {
+            failed.set(
+              run.remote.id,
+              `rename ${rename.from}: ${e?.message ?? e}`,
+            )
+            continue
+          }
         }
         await moveProfileRecords(
           deps.db,

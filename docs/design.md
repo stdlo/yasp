@@ -96,7 +96,8 @@ the tested engine once per remote keeps each run as it was.
   route at once, and records the rename; the next sync, under the lock and before its runs, renames the folder on
   each remote that holds it (one Dropbox move, one GitHub commit) and then rewrites that profile's records under the
   old folder to the new one, so the run finds everything equal. A remote whose rename fails keeps it pending and
-  doesn't run that sync. An encrypted remote names each path on its own, so it gets no folder move: its run deletes
+  doesn't run that sync, unless it already holds the new folder and not the old one (renamed before the plugin
+  stopped), when the records move as if the rename had just gone through. An encrypted remote names each path on its own, so it gets no folder move: its run deletes
   and uploads, which the percentage guard may stop.
 - **A routed folder gone when the plugin wasn't watching** (renamed in Finder, restored from a backup, renamed on
   another device): before the runs, when a routed folder is missing locally while its remote still holds files
