@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): only the Apache strings, no paid ones
+// Changed for Remotely Save Lite (2026): only the Apache strings, no paid ones; a chosen language is honoured
 import Mustache from 'mustache'
 import { moment } from 'obsidian'
 
@@ -24,12 +24,9 @@ export class I18n {
   }
 
   _get(key: TransItemType) {
-    let realLang = this.lang
-    if (this.lang === 'auto' && moment.locale().replace('-', '_') in LANGS) {
-      realLang = moment.locale().replace('-', '_') as LangType
-    } else {
-      realLang = 'en'
-    }
+    const wanted =
+      this.lang === 'auto' ? moment.locale().replace('-', '_') : this.lang
+    const realLang: LangType = wanted in LANGS ? (wanted as LangType) : 'en'
 
     const res: string =
       (LANGS[realLang] as (typeof LANGS)['en'])[key] || LANGS['en'][key] || key
