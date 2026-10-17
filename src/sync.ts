@@ -1,7 +1,7 @@
 // Changed for Remotely Save Lite (2026): restored from upstream's Apache-2.0 history (adacda7), its paid hooks and smart conflict removed, no Biome comments
-import AggregateError from "aggregate-error";
-import PQueue from "p-queue";
-import XRegExp from "xregexp";
+import AggregateError from 'aggregate-error'
+import PQueue from 'p-queue'
+import XRegExp from 'xregexp'
 import type {
   ConflictActionType,
   EmptyFolderCleanType,
@@ -11,21 +11,21 @@ import type {
   SUPPORTED_SERVICES_TYPE,
   SyncDirectionType,
   SyncTriggerSourceType,
-} from "./baseTypes";
-import { copyFile, copyFileOrFolder, copyFolder } from "./copyLogic";
-import type { FakeFs } from "./fsAll";
-import type { FakeFsEncrypt } from "./fsEncrypt";
+} from './baseTypes'
+import { copyFile, copyFileOrFolder, copyFolder } from './copyLogic'
+import type { FakeFs } from './fsAll'
+import type { FakeFsEncrypt } from './fsEncrypt'
 import {
   type InternalDBs,
   clearPrevSyncRecordByVaultAndProfile,
   getAllPrevSyncRecordsByVaultAndProfile,
   insertSyncPlanRecordByVault,
   upsertPrevSyncRecordByVaultAndProfile,
-} from "./localdb";
+} from './localdb'
 import {
   DEFAULT_FILE_NAME_FOR_METADATAONREMOTE,
   DEFAULT_FILE_NAME_FOR_METADATAONREMOTE2,
-} from "./metadataOnRemote";
+} from './metadataOnRemote'
 import {
   atWhichLevel,
   getParentFolder,
@@ -33,50 +33,50 @@ import {
   isSpecialFolderNameToSkip,
   roughSizeOfObject,
   unixTimeToStr,
-} from "./misc";
-import type { Profiler } from "./profiler";
+} from './misc'
+import type { Profiler } from './profiler'
 
 const copyEntityAndFixTimeFormat = (
   src: Entity,
-  serviceType: SUPPORTED_SERVICES_TYPE
+  serviceType: SUPPORTED_SERVICES_TYPE,
 ) => {
-  const result = Object.assign({}, src);
+  const result = Object.assign({}, src)
   if (result.mtimeCli !== undefined) {
     if (result.mtimeCli === 0) {
-      result.mtimeCli = undefined;
+      result.mtimeCli = undefined
     } else {
-      if (serviceType === "dropbox") {
+      if (serviceType === 'dropbox') {
         // round to second instead of millisecond
-        result.mtimeCli = Math.floor(result.mtimeCli / 1000.0) * 1000;
+        result.mtimeCli = Math.floor(result.mtimeCli / 1000.0) * 1000
       }
-      result.mtimeCliFmt = unixTimeToStr(result.mtimeCli);
+      result.mtimeCliFmt = unixTimeToStr(result.mtimeCli)
     }
   }
   if (result.mtimeSvr !== undefined) {
     if (result.mtimeSvr === 0) {
-      result.mtimeSvr = undefined;
+      result.mtimeSvr = undefined
     } else {
-      if (serviceType === "dropbox") {
+      if (serviceType === 'dropbox') {
         // round to second instead of millisecond
-        result.mtimeSvr = Math.floor(result.mtimeSvr / 1000.0) * 1000;
+        result.mtimeSvr = Math.floor(result.mtimeSvr / 1000.0) * 1000
       }
-      result.mtimeSvrFmt = unixTimeToStr(result.mtimeSvr);
+      result.mtimeSvrFmt = unixTimeToStr(result.mtimeSvr)
     }
   }
   if (result.prevSyncTime !== undefined) {
     if (result.prevSyncTime === 0) {
-      result.prevSyncTime = undefined;
+      result.prevSyncTime = undefined
     } else {
-      if (serviceType === "dropbox") {
+      if (serviceType === 'dropbox') {
         // round to second instead of millisecond
-        result.prevSyncTime = Math.floor(result.prevSyncTime / 1000.0) * 1000;
+        result.prevSyncTime = Math.floor(result.prevSyncTime / 1000.0) * 1000
       }
-      result.prevSyncTimeFmt = unixTimeToStr(result.prevSyncTime);
+      result.prevSyncTimeFmt = unixTimeToStr(result.prevSyncTime)
     }
   }
 
-  return result;
-};
+  return result
+}
 
 /**
  * Directly throw error here.
@@ -85,64 +85,64 @@ const copyEntityAndFixTimeFormat = (
  */
 const ensureMTimeOfRemoteEntityValid = (remote: Entity) => {
   if (
-    !remote.key!.endsWith("/") &&
+    !remote.key!.endsWith('/') &&
     remote.mtimeCli === undefined &&
     remote.mtimeSvr === undefined
   ) {
     if (remote.key === remote.keyEnc) {
       throw Error(
-        `Your remote file ${remote.key} has last modified time 0, don't know how to deal with it.`
-      );
+        `Your remote file ${remote.key} has last modified time 0, don't know how to deal with it.`,
+      )
     } else {
       throw Error(
-        `Your remote file ${remote.key} (encrypted as ${remote.keyEnc}) has last modified time 0, don't know how to deal with it.`
-      );
+        `Your remote file ${remote.key} (encrypted as ${remote.keyEnc}) has last modified time 0, don't know how to deal with it.`,
+      )
     }
   }
-  return remote;
-};
+  return remote
+}
 
 const isInsideObsFolder = (x: string, configDir: string) => {
-  if (!configDir.startsWith(".")) {
-    throw Error(`configDir should starts with . but we get ${configDir}`);
+  if (!configDir.startsWith('.')) {
+    throw Error(`configDir should starts with . but we get ${configDir}`)
   }
-  return x === configDir || x.startsWith(`${configDir}/`);
-};
+  return x === configDir || x.startsWith(`${configDir}/`)
+}
 
 const isSkipItemByName = (
   key: string,
   syncConfigDir: boolean,
   syncUnderscoreItems: boolean,
   configDir: string,
-  ignorePaths: string[]
+  ignorePaths: string[],
 ) => {
   if (key === undefined) {
-    throw Error(`isSkipItemByName meets undefinded key!`);
+    throw Error(`isSkipItemByName meets undefinded key!`)
   }
   if (ignorePaths !== undefined && ignorePaths.length > 0) {
     for (const r of ignorePaths) {
-      if (XRegExp(r, "A").test(key)) {
-        return true;
+      if (XRegExp(r, 'A').test(key)) {
+        return true
       }
     }
   }
   if (syncConfigDir && isInsideObsFolder(key, configDir)) {
-    return false;
+    return false
   }
   if (isSpecialFolderNameToSkip(key, [])) {
     // some special dirs and files are always skipped
-    return true;
+    return true
   }
   return (
     isHiddenPath(key, true, false) ||
     (!syncUnderscoreItems && isHiddenPath(key, false, true)) ||
-    key === "/" ||
+    key === '/' ||
     key === DEFAULT_FILE_NAME_FOR_METADATAONREMOTE ||
     key === DEFAULT_FILE_NAME_FOR_METADATAONREMOTE2
-  );
-};
+  )
+}
 
-export type SyncPlanType = Record<string, MixedEntity>;
+export type SyncPlanType = Record<string, MixedEntity>
 
 const ensembleMixedEnties = async (
   localEntityList: Entity[],
@@ -156,43 +156,43 @@ const ensembleMixedEnties = async (
   fsEncrypt: FakeFsEncrypt,
   serviceType: SUPPORTED_SERVICES_TYPE,
 
-  profiler: Profiler | undefined
+  profiler: Profiler | undefined,
 ): Promise<SyncPlanType> => {
-  profiler?.addIndent();
-  profiler?.insert("ensembleMixedEnties: enter");
-  profiler?.insertSize("sizeof localEntityList", localEntityList);
-  profiler?.insertSize("sizeof prevSyncEntityList", prevSyncEntityList);
-  profiler?.insertSize("sizeof remoteEntityList", remoteEntityList);
+  profiler?.addIndent()
+  profiler?.insert('ensembleMixedEnties: enter')
+  profiler?.insertSize('sizeof localEntityList', localEntityList)
+  profiler?.insertSize('sizeof prevSyncEntityList', prevSyncEntityList)
+  profiler?.insertSize('sizeof remoteEntityList', remoteEntityList)
 
-  const finalMappings: SyncPlanType = {};
+  const finalMappings: SyncPlanType = {}
 
   // remote has to be first
   for (const remote of remoteEntityList) {
     const remoteCopied = ensureMTimeOfRemoteEntityValid(
-      copyEntityAndFixTimeFormat(remote, serviceType)
-    );
+      copyEntityAndFixTimeFormat(remote, serviceType),
+    )
 
-    const key = remoteCopied.key!;
+    const key = remoteCopied.key!
     if (
       isSkipItemByName(
         key,
         syncConfigDir,
         syncUnderscoreItems,
         configDir,
-        ignorePaths
+        ignorePaths,
       )
     ) {
-      continue;
+      continue
     }
 
     finalMappings[key] = {
       key: key,
       remote: remoteCopied,
-    };
+    }
   }
 
-  profiler?.insert("ensembleMixedEnties: finish remote");
-  profiler?.insertSize("sizeof finalMappings", finalMappings);
+  profiler?.insert('ensembleMixedEnties: finish remote')
+  profiler?.insertSize('sizeof finalMappings', finalMappings)
 
   if (Object.keys(finalMappings).length === 0 || localEntityList.length === 0) {
     // Special checking:
@@ -204,78 +204,78 @@ const ensembleMixedEnties = async (
   } else {
     // normally go through the prevSyncEntityList
     for (const prevSync of prevSyncEntityList) {
-      const key = prevSync.key!;
+      const key = prevSync.key!
       if (
         isSkipItemByName(
           key,
           syncConfigDir,
           syncUnderscoreItems,
           configDir,
-          ignorePaths
+          ignorePaths,
         )
       ) {
-        continue;
+        continue
       }
 
       // TODO: abstraction leaking?
       const prevSyncCopied = await fsEncrypt.encryptEntity(
-        copyEntityAndFixTimeFormat(prevSync, serviceType)
-      );
+        copyEntityAndFixTimeFormat(prevSync, serviceType),
+      )
       if (finalMappings.hasOwnProperty(key)) {
-        finalMappings[key].prevSync = prevSyncCopied;
+        finalMappings[key].prevSync = prevSyncCopied
       } else {
         finalMappings[key] = {
           key: key,
           prevSync: prevSyncCopied,
-        };
+        }
       }
     }
   }
 
-  profiler?.insert("ensembleMixedEnties: finish prevSync");
-  profiler?.insertSize("sizeof finalMappings", finalMappings);
+  profiler?.insert('ensembleMixedEnties: finish prevSync')
+  profiler?.insertSize('sizeof finalMappings', finalMappings)
 
   // local has to be last
   // because we want to get keyEnc based on the remote
   // (we don't consume prevSync here because it gains no benefit)
   for (const local of localEntityList) {
-    const key = local.key!;
+    const key = local.key!
     if (
       isSkipItemByName(
         key,
         syncConfigDir,
         syncUnderscoreItems,
         configDir,
-        ignorePaths
+        ignorePaths,
       )
     ) {
-      continue;
+      continue
     }
 
     // TODO: abstraction leaking?
     const localCopied = await fsEncrypt.encryptEntity(
-      copyEntityAndFixTimeFormat(local, serviceType)
-    );
+      copyEntityAndFixTimeFormat(local, serviceType),
+    )
     if (finalMappings.hasOwnProperty(key)) {
-      finalMappings[key].local = localCopied;
+      finalMappings[key].local = localCopied
     } else {
       finalMappings[key] = {
         key: key,
         local: localCopied,
-      };
+      }
     }
   }
 
-  profiler?.insert("ensembleMixedEnties: finish local");
-  profiler?.insertSize("sizeof finalMappings", finalMappings);
+  profiler?.insert('ensembleMixedEnties: finish local')
+  profiler?.insertSize('sizeof finalMappings', finalMappings)
 
   // console.debug("in the end of ensembleMixedEnties, finalMappings is:");
   // console.debug(finalMappings);
 
-  profiler?.insert("ensembleMixedEnties: exit");
-  profiler?.removeIndent();
-  return finalMappings;
-};
+  profiler?.insert('ensembleMixedEnties: exit')
+  profiler?.removeIndent()
+  return finalMappings
+}
 
 /**
  * Heavy lifting.
@@ -290,179 +290,177 @@ const getSyncPlanInplace = async (
   syncDirection: SyncDirectionType,
   profiler: Profiler | undefined,
   settings: RemotelySavePluginSettings,
-  triggerSource: SyncTriggerSourceType
+  triggerSource: SyncTriggerSourceType,
 ) => {
-  profiler?.addIndent();
-  profiler?.insert("getSyncPlanInplace: enter");
+  profiler?.addIndent()
+  profiler?.insert('getSyncPlanInplace: enter')
   // from long(deep) to short(shadow)
   const sortedKeys = Object.keys(mixedEntityMappings).sort(
-    (k1, k2) => k2.length - k1.length
-  );
-  profiler?.insert("getSyncPlanInplace: finish sorting");
-  profiler?.insertSize("sizeof sortedKeys", sortedKeys);
+    (k1, k2) => k2.length - k1.length,
+  )
+  profiler?.insert('getSyncPlanInplace: finish sorting')
+  profiler?.insertSize('sizeof sortedKeys', sortedKeys)
 
-  const keptFolder = new Set<string>();
-  const mayDeleteFolder = new Set<string>();
+  const keptFolder = new Set<string>()
+  const mayDeleteFolder = new Set<string>()
 
   for (let i = 0; i < sortedKeys.length; ++i) {
     if (i % 100 === 0) {
       profiler?.insertSize(
         `sizeof sortedKeys in the beginning of i=${i}`,
-        mixedEntityMappings
-      );
+        mixedEntityMappings,
+      )
     }
-    const key = sortedKeys[i];
-    const mixedEntry = mixedEntityMappings[key];
-    const { local, prevSync, remote } = mixedEntry;
+    const key = sortedKeys[i]
+    const mixedEntry = mixedEntityMappings[key]
+    const { local, prevSync, remote } = mixedEntry
 
     // console.debug(`getSyncPlanInplace: key=${key}`)
 
-    if (key.endsWith("/")) {
+    if (key.endsWith('/')) {
       // folder
       // folder doesn't worry about mtime and size, only check their existences
       if (keptFolder.has(key)) {
         // parent should also be kept
         // console.debug(`${key} in keptFolder`)
-        keptFolder.add(getParentFolder(key));
-        mayDeleteFolder.delete(getParentFolder(key));
+        keptFolder.add(getParentFolder(key))
+        mayDeleteFolder.delete(getParentFolder(key))
         // should fill the missing part
         if (local !== undefined && remote !== undefined) {
-          mixedEntry.decisionBranch = 101;
-          mixedEntry.decision = "folder_existed_both_then_do_nothing";
-          mixedEntry.change = false;
+          mixedEntry.decisionBranch = 101
+          mixedEntry.decision = 'folder_existed_both_then_do_nothing'
+          mixedEntry.change = false
         } else if (local !== undefined && remote === undefined) {
-          if (syncDirection === "incremental_pull_only") {
-            mixedEntry.decisionBranch = 107;
-            mixedEntry.decision = "folder_to_skip";
-            mixedEntry.change = false;
+          if (syncDirection === 'incremental_pull_only') {
+            mixedEntry.decisionBranch = 107
+            mixedEntry.decision = 'folder_to_skip'
+            mixedEntry.change = false
           } else {
-            mixedEntry.decisionBranch = 102;
-            mixedEntry.decision =
-              "folder_existed_local_then_also_create_remote";
-            mixedEntry.change = true;
+            mixedEntry.decisionBranch = 102
+            mixedEntry.decision = 'folder_existed_local_then_also_create_remote'
+            mixedEntry.change = true
           }
         } else if (local === undefined && remote !== undefined) {
-          if (syncDirection === "incremental_push_only") {
-            mixedEntry.decisionBranch = 108;
-            mixedEntry.decision = "folder_to_skip";
-            mixedEntry.change = false;
+          if (syncDirection === 'incremental_push_only') {
+            mixedEntry.decisionBranch = 108
+            mixedEntry.decision = 'folder_to_skip'
+            mixedEntry.change = false
           } else {
-            mixedEntry.decisionBranch = 103;
-            mixedEntry.decision =
-              "folder_existed_remote_then_also_create_local";
-            mixedEntry.change = true;
+            mixedEntry.decisionBranch = 103
+            mixedEntry.decision = 'folder_existed_remote_then_also_create_local'
+            mixedEntry.change = true
           }
         } else {
           // why?? how??
-          mixedEntry.decisionBranch = 104;
-          mixedEntry.decision = "folder_to_be_created";
-          mixedEntry.change = true;
+          mixedEntry.decisionBranch = 104
+          mixedEntry.decision = 'folder_to_be_created'
+          mixedEntry.change = true
         }
-        keptFolder.delete(key); // no need to save it in the Set later
-        mayDeleteFolder.delete(key); // must ignore this
+        keptFolder.delete(key) // no need to save it in the Set later
+        mayDeleteFolder.delete(key) // must ignore this
       } else {
-        if (howToCleanEmptyFolder === "skip") {
-          mixedEntry.decisionBranch = 105;
-          mixedEntry.decision = "folder_to_skip";
-          mixedEntry.change = false;
-          keptFolder.add(getParentFolder(key)); // we want to keep parent!
-          mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
-        } else if (howToCleanEmptyFolder === "clean_both") {
+        if (howToCleanEmptyFolder === 'skip') {
+          mixedEntry.decisionBranch = 105
+          mixedEntry.decision = 'folder_to_skip'
+          mixedEntry.change = false
+          keptFolder.add(getParentFolder(key)) // we want to keep parent!
+          mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
+        } else if (howToCleanEmptyFolder === 'clean_both') {
           if (local !== undefined && remote !== undefined) {
-            if (syncDirection === "bidirectional") {
+            if (syncDirection === 'bidirectional') {
               if (mayDeleteFolder.has(key)) {
                 // from 0.5.6 and on,
                 // we only delete the folders caused by file deletion
-                mixedEntry.decisionBranch = 106;
-                mixedEntry.decision = "folder_to_be_deleted_on_both";
-                mixedEntry.change = true;
-                mayDeleteFolder.add(getParentFolder(key));
-                mayDeleteFolder.delete(key); // good to remove now
+                mixedEntry.decisionBranch = 106
+                mixedEntry.decision = 'folder_to_be_deleted_on_both'
+                mixedEntry.change = true
+                mayDeleteFolder.add(getParentFolder(key))
+                mayDeleteFolder.delete(key) // good to remove now
               } else {
-                mixedEntry.decisionBranch = 115;
-                mixedEntry.decision = "folder_existed_both_then_do_nothing";
-                mixedEntry.change = false;
-                keptFolder.add(getParentFolder(key)); // we want to keep parent!
-                mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+                mixedEntry.decisionBranch = 115
+                mixedEntry.decision = 'folder_existed_both_then_do_nothing'
+                mixedEntry.change = false
+                keptFolder.add(getParentFolder(key)) // we want to keep parent!
+                mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
               }
             } else {
               // right now it does nothing because of "incremental"
               // TODO: should we delete??
-              mixedEntry.decisionBranch = 109;
-              mixedEntry.decision = "folder_to_skip";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key)); // we want to keep parent!
-              mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+              mixedEntry.decisionBranch = 109
+              mixedEntry.decision = 'folder_to_skip'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key)) // we want to keep parent!
+              mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
             }
           } else if (local !== undefined && remote === undefined) {
-            if (syncDirection === "bidirectional") {
+            if (syncDirection === 'bidirectional') {
               if (mayDeleteFolder.has(key)) {
                 // from 0.5.6 and on,
                 // we only delete the folders caused by file deletion
-                mixedEntry.decisionBranch = 110;
-                mixedEntry.decision = "folder_to_be_deleted_on_local";
-                mixedEntry.change = true;
-                mayDeleteFolder.add(getParentFolder(key));
-                mayDeleteFolder.delete(key); // good to remove now
+                mixedEntry.decisionBranch = 110
+                mixedEntry.decision = 'folder_to_be_deleted_on_local'
+                mixedEntry.change = true
+                mayDeleteFolder.add(getParentFolder(key))
+                mayDeleteFolder.delete(key) // good to remove now
               } else {
                 // the folder might be created locally
                 // so we want to create it remotely as well.
-                mixedEntry.decisionBranch = 116;
+                mixedEntry.decisionBranch = 116
                 mixedEntry.decision =
-                  "folder_existed_local_then_also_create_remote";
-                mixedEntry.change = false;
-                keptFolder.add(getParentFolder(key)); // we want to keep parent!
-                mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+                  'folder_existed_local_then_also_create_remote'
+                mixedEntry.change = false
+                keptFolder.add(getParentFolder(key)) // we want to keep parent!
+                mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
               }
             } else {
               // right now it does nothing because of "incremental"
               // TODO: should we delete??
-              mixedEntry.decisionBranch = 111;
-              mixedEntry.decision = "folder_to_skip";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key)); // we want to keep parent!
-              mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+              mixedEntry.decisionBranch = 111
+              mixedEntry.decision = 'folder_to_skip'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key)) // we want to keep parent!
+              mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
             }
           } else if (local === undefined && remote !== undefined) {
-            if (syncDirection === "bidirectional") {
+            if (syncDirection === 'bidirectional') {
               if (mayDeleteFolder.has(key)) {
                 // from 0.5.6 and on,
                 // we only delete the folders caused by file deletion
-                mixedEntry.decisionBranch = 112;
-                mixedEntry.decision = "folder_to_be_deleted_on_remote";
-                mixedEntry.change = true;
-                mayDeleteFolder.add(getParentFolder(key));
-                mayDeleteFolder.delete(key); // good to remove now
+                mixedEntry.decisionBranch = 112
+                mixedEntry.decision = 'folder_to_be_deleted_on_remote'
+                mixedEntry.change = true
+                mayDeleteFolder.add(getParentFolder(key))
+                mayDeleteFolder.delete(key) // good to remove now
               } else {
                 // the folder might be created remotely
                 // so we want to create it locally as well.
-                mixedEntry.decisionBranch = 117;
+                mixedEntry.decisionBranch = 117
                 mixedEntry.decision =
-                  "folder_existed_remote_then_also_create_local";
-                mixedEntry.change = false;
-                keptFolder.add(getParentFolder(key)); // we want to keep parent!
-                mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+                  'folder_existed_remote_then_also_create_local'
+                mixedEntry.change = false
+                keptFolder.add(getParentFolder(key)) // we want to keep parent!
+                mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
               }
             } else {
               // right now it does nothing because of "incremental"
               // TODO: should we delete??
-              mixedEntry.decisionBranch = 113;
-              mixedEntry.decision = "folder_to_skip";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key)); // we want to keep parent!
-              mayDeleteFolder.delete(getParentFolder(key)); // we don't want to delete parent!
+              mixedEntry.decisionBranch = 113
+              mixedEntry.decision = 'folder_to_skip'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key)) // we want to keep parent!
+              mayDeleteFolder.delete(getParentFolder(key)) // we don't want to delete parent!
             }
           } else {
             // local === undefined && remote === undefined
             // no folder to delete, do nothing
-            mixedEntry.decisionBranch = 114;
-            mixedEntry.decision = "folder_to_skip";
-            mixedEntry.change = false;
+            mixedEntry.decisionBranch = 114
+            mixedEntry.decision = 'folder_to_skip'
+            mixedEntry.change = false
           }
         } else {
           throw Error(
-            `do not know how to deal with empty folder ${mixedEntry.key}`
-          );
+            `do not know how to deal with empty folder ${mixedEntry.key}`,
+          )
         }
       }
     } else {
@@ -470,9 +468,9 @@ const getSyncPlanInplace = async (
 
       if (local === undefined && remote === undefined) {
         // both deleted, only in history
-        mixedEntry.decisionBranch = 1;
-        mixedEntry.decision = "only_history";
-        mixedEntry.change = false;
+        mixedEntry.decisionBranch = 1
+        mixedEntry.decision = 'only_history'
+        mixedEntry.change = false
       } else if (local !== undefined && remote !== undefined) {
         if (
           (local.mtimeCli === remote.mtimeCli ||
@@ -480,20 +478,20 @@ const getSyncPlanInplace = async (
           local.sizeEnc === remote.sizeEnc
         ) {
           // completely equal / identical
-          mixedEntry.decisionBranch = 2;
-          mixedEntry.decision = "equal";
-          mixedEntry.change = false;
-          keptFolder.add(getParentFolder(key));
+          mixedEntry.decisionBranch = 2
+          mixedEntry.decision = 'equal'
+          mixedEntry.change = false
+          keptFolder.add(getParentFolder(key))
         } else {
           // Both exists, but modified or conflict
           // Look for past files of A or B.
           const localEqualPrevSync =
             prevSync?.mtimeCli === local.mtimeCli &&
-            prevSync?.sizeEnc === local.sizeEnc;
+            prevSync?.sizeEnc === local.sizeEnc
           const remoteEqualPrevSync =
             (prevSync?.mtimeSvr === remote.mtimeCli ||
               prevSync?.mtimeSvr === remote.mtimeSvr) &&
-            prevSync?.sizeEnc === remote.sizeEnc;
+            prevSync?.sizeEnc === remote.sizeEnc
 
           if (localEqualPrevSync && !remoteEqualPrevSync) {
             // If only one compares true (no prev also means it compares False), the other is modified. Backup and sync.
@@ -501,23 +499,23 @@ const getSyncPlanInplace = async (
               skipSizeLargerThan <= 0 ||
               remote.sizeEnc! <= skipSizeLargerThan
             ) {
-              if (syncDirection === "incremental_push_only") {
-                mixedEntry.decisionBranch = 26;
-                mixedEntry.decision = "conflict_modified_then_keep_local";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+              if (syncDirection === 'incremental_push_only') {
+                mixedEntry.decisionBranch = 26
+                mixedEntry.decision = 'conflict_modified_then_keep_local'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               } else {
-                mixedEntry.decisionBranch = 9;
-                mixedEntry.decision = "remote_is_modified_then_pull";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+                mixedEntry.decisionBranch = 9
+                mixedEntry.decision = 'remote_is_modified_then_pull'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               }
             } else {
               throw Error(
                 `remote is modified (branch 9) but size larger than ${skipSizeLargerThan}, don't know what to do: ${JSON.stringify(
-                  mixedEntry
-                )}`
-              );
+                  mixedEntry,
+                )}`,
+              )
             }
           } else if (!localEqualPrevSync && remoteEqualPrevSync) {
             // If only one compares true (no prev also means it compares False), the other is modified. Backup and sync.
@@ -525,129 +523,129 @@ const getSyncPlanInplace = async (
               skipSizeLargerThan <= 0 ||
               local.sizeEnc! <= skipSizeLargerThan
             ) {
-              if (syncDirection === "incremental_pull_only") {
-                mixedEntry.decisionBranch = 27;
-                mixedEntry.decision = "conflict_modified_then_keep_remote";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+              if (syncDirection === 'incremental_pull_only') {
+                mixedEntry.decisionBranch = 27
+                mixedEntry.decision = 'conflict_modified_then_keep_remote'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               } else {
-                mixedEntry.decisionBranch = 10;
-                mixedEntry.decision = "local_is_modified_then_push";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+                mixedEntry.decisionBranch = 10
+                mixedEntry.decision = 'local_is_modified_then_push'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               }
             } else {
               throw Error(
                 `local is modified (branch 10) but size larger than ${skipSizeLargerThan}, don't know what to do: ${JSON.stringify(
-                  mixedEntry
-                )}`
-              );
+                  mixedEntry,
+                )}`,
+              )
             }
           } else if (!localEqualPrevSync && !remoteEqualPrevSync) {
             // If both compare False (Didn't exist means both are new. Both exist but don't compare means both are modified)
             if (prevSync === undefined) {
               // Didn't exist means both are new
-              if (syncDirection === "bidirectional") {
-                if (conflictAction === "keep_newer") {
+              if (syncDirection === 'bidirectional') {
+                if (conflictAction === 'keep_newer') {
                   if (
                     (local.mtimeCli ?? local.mtimeSvr ?? 0) >=
                     (remote.mtimeCli ?? remote.mtimeSvr ?? 0)
                   ) {
-                    mixedEntry.decisionBranch = 11;
-                    mixedEntry.decision = "conflict_created_then_keep_local";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 11
+                    mixedEntry.decision = 'conflict_created_then_keep_local'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   } else {
-                    mixedEntry.decisionBranch = 12;
-                    mixedEntry.decision = "conflict_created_then_keep_remote";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 12
+                    mixedEntry.decision = 'conflict_created_then_keep_remote'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   }
-                } else if (conflictAction === "keep_larger") {
+                } else if (conflictAction === 'keep_larger') {
                   if (local.sizeEnc! >= remote.sizeEnc!) {
-                    mixedEntry.decisionBranch = 13;
-                    mixedEntry.decision = "conflict_created_then_keep_local";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 13
+                    mixedEntry.decision = 'conflict_created_then_keep_local'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   } else {
-                    mixedEntry.decisionBranch = 14;
-                    mixedEntry.decision = "conflict_created_then_keep_remote";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 14
+                    mixedEntry.decision = 'conflict_created_then_keep_remote'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   }
                 }
                 // TODO(smart-conflict): merge or keep both copies here.
-              } else if (syncDirection === "incremental_pull_only") {
-                mixedEntry.decisionBranch = 22;
-                mixedEntry.decision = "conflict_created_then_keep_remote";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
-              } else if (syncDirection === "incremental_push_only") {
-                mixedEntry.decisionBranch = 23;
-                mixedEntry.decision = "conflict_created_then_keep_local";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+              } else if (syncDirection === 'incremental_pull_only') {
+                mixedEntry.decisionBranch = 22
+                mixedEntry.decision = 'conflict_created_then_keep_remote'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
+              } else if (syncDirection === 'incremental_push_only') {
+                mixedEntry.decisionBranch = 23
+                mixedEntry.decision = 'conflict_created_then_keep_local'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               } else {
                 throw Error(
-                  `no idea how to deal with syncDirection=${syncDirection} while conflict created`
-                );
+                  `no idea how to deal with syncDirection=${syncDirection} while conflict created`,
+                )
               }
             } else {
               // Both exist but don't compare means both are modified
-              if (syncDirection === "bidirectional") {
-                if (conflictAction === "keep_newer") {
+              if (syncDirection === 'bidirectional') {
+                if (conflictAction === 'keep_newer') {
                   if (
                     (local.mtimeCli ?? local.mtimeSvr ?? 0) >=
                     (remote.mtimeCli ?? remote.mtimeSvr ?? 0)
                   ) {
-                    mixedEntry.decisionBranch = 16;
-                    mixedEntry.decision = "conflict_modified_then_keep_local";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 16
+                    mixedEntry.decision = 'conflict_modified_then_keep_local'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   } else {
-                    mixedEntry.decisionBranch = 17;
-                    mixedEntry.decision = "conflict_modified_then_keep_remote";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 17
+                    mixedEntry.decision = 'conflict_modified_then_keep_remote'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   }
-                } else if (conflictAction === "keep_larger") {
+                } else if (conflictAction === 'keep_larger') {
                   if (local.sizeEnc! >= remote.sizeEnc!) {
-                    mixedEntry.decisionBranch = 18;
-                    mixedEntry.decision = "conflict_modified_then_keep_local";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 18
+                    mixedEntry.decision = 'conflict_modified_then_keep_local'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   } else {
-                    mixedEntry.decisionBranch = 19;
-                    mixedEntry.decision = "conflict_modified_then_keep_remote";
-                    mixedEntry.change = true;
-                    keptFolder.add(getParentFolder(key));
+                    mixedEntry.decisionBranch = 19
+                    mixedEntry.decision = 'conflict_modified_then_keep_remote'
+                    mixedEntry.change = true
+                    keptFolder.add(getParentFolder(key))
                   }
                 }
                 // TODO(smart-conflict): merge or keep both copies here.
-              } else if (syncDirection === "incremental_pull_only") {
-                mixedEntry.decisionBranch = 24;
-                mixedEntry.decision = "conflict_modified_then_keep_remote";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
-              } else if (syncDirection === "incremental_push_only") {
-                mixedEntry.decisionBranch = 25;
-                mixedEntry.decision = "conflict_modified_then_keep_local";
-                mixedEntry.change = true;
-                keptFolder.add(getParentFolder(key));
+              } else if (syncDirection === 'incremental_pull_only') {
+                mixedEntry.decisionBranch = 24
+                mixedEntry.decision = 'conflict_modified_then_keep_remote'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
+              } else if (syncDirection === 'incremental_push_only') {
+                mixedEntry.decisionBranch = 25
+                mixedEntry.decision = 'conflict_modified_then_keep_local'
+                mixedEntry.change = true
+                keptFolder.add(getParentFolder(key))
               } else {
                 throw Error(
-                  `no idea how to deal with syncDirection=${syncDirection} while conflict modified`
-                );
+                  `no idea how to deal with syncDirection=${syncDirection} while conflict modified`,
+                )
               }
             }
           } else {
             // Both compare true.
             // This is likely because of the mtimeCli and mtimeSvr tricks.
             // The result should be equal!!!
-            mixedEntry.decisionBranch = 21;
-            mixedEntry.decision = "equal";
-            mixedEntry.change = false;
-            keptFolder.add(getParentFolder(key));
+            mixedEntry.decisionBranch = 21
+            mixedEntry.decision = 'equal'
+            mixedEntry.change = false
+            keptFolder.add(getParentFolder(key))
           }
         }
       } else if (local === undefined && remote !== undefined) {
@@ -658,22 +656,22 @@ const getSyncPlanInplace = async (
             skipSizeLargerThan <= 0 ||
             remote.sizeEnc! <= skipSizeLargerThan
           ) {
-            if (syncDirection === "incremental_push_only") {
-              mixedEntry.decisionBranch = 28;
-              mixedEntry.decision = "conflict_created_then_do_nothing";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key));
+            if (syncDirection === 'incremental_push_only') {
+              mixedEntry.decisionBranch = 28
+              mixedEntry.decision = 'conflict_created_then_do_nothing'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key))
             } else {
-              mixedEntry.decisionBranch = 3;
-              mixedEntry.decision = "remote_is_created_then_pull";
-              mixedEntry.change = true;
-              keptFolder.add(getParentFolder(key));
+              mixedEntry.decisionBranch = 3
+              mixedEntry.decision = 'remote_is_created_then_pull'
+              mixedEntry.change = true
+              keptFolder.add(getParentFolder(key))
             }
           } else {
-            mixedEntry.decisionBranch = 36;
-            mixedEntry.decision = "remote_is_created_too_large_then_do_nothing";
-            mixedEntry.change = false;
-            keptFolder.add(getParentFolder(key));
+            mixedEntry.decisionBranch = 36
+            mixedEntry.decision = 'remote_is_created_too_large_then_do_nothing'
+            mixedEntry.change = false
+            keptFolder.add(getParentFolder(key))
           }
         } else if (
           (prevSync.mtimeSvr === remote.mtimeCli ||
@@ -681,21 +679,21 @@ const getSyncPlanInplace = async (
           prevSync.sizeEnc === remote.sizeEnc
         ) {
           // if B is in the previous list and UNMODIFIED, B has been deleted by A
-          if (syncDirection === "incremental_push_only") {
-            mixedEntry.decisionBranch = 29;
-            mixedEntry.decision = "conflict_created_then_do_nothing";
-            mixedEntry.change = false;
-            keptFolder.add(getParentFolder(key));
-          } else if (syncDirection === "incremental_pull_only") {
-            mixedEntry.decisionBranch = 35;
-            mixedEntry.decision = "conflict_created_then_keep_remote";
-            mixedEntry.change = true;
-            keptFolder.add(getParentFolder(key));
+          if (syncDirection === 'incremental_push_only') {
+            mixedEntry.decisionBranch = 29
+            mixedEntry.decision = 'conflict_created_then_do_nothing'
+            mixedEntry.change = false
+            keptFolder.add(getParentFolder(key))
+          } else if (syncDirection === 'incremental_pull_only') {
+            mixedEntry.decisionBranch = 35
+            mixedEntry.decision = 'conflict_created_then_keep_remote'
+            mixedEntry.change = true
+            keptFolder.add(getParentFolder(key))
           } else {
-            mixedEntry.decisionBranch = 4;
-            mixedEntry.decision = "local_is_deleted_thus_also_delete_remote";
-            mixedEntry.change = true;
-            mayDeleteFolder.add(getParentFolder(key));
+            mixedEntry.decisionBranch = 4
+            mixedEntry.decision = 'local_is_deleted_thus_also_delete_remote'
+            mixedEntry.change = true
+            mayDeleteFolder.add(getParentFolder(key))
           }
         } else {
           // if B is in the previous list and MODIFIED, B has been deleted by A but modified by B
@@ -703,23 +701,23 @@ const getSyncPlanInplace = async (
             skipSizeLargerThan <= 0 ||
             remote.sizeEnc! <= skipSizeLargerThan
           ) {
-            if (syncDirection === "incremental_push_only") {
-              mixedEntry.decisionBranch = 30;
-              mixedEntry.decision = "conflict_created_then_do_nothing";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key));
+            if (syncDirection === 'incremental_push_only') {
+              mixedEntry.decisionBranch = 30
+              mixedEntry.decision = 'conflict_created_then_do_nothing'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key))
             } else {
-              mixedEntry.decisionBranch = 5;
-              mixedEntry.decision = "remote_is_modified_then_pull";
-              mixedEntry.change = true;
-              keptFolder.add(getParentFolder(key));
+              mixedEntry.decisionBranch = 5
+              mixedEntry.decision = 'remote_is_modified_then_pull'
+              mixedEntry.change = true
+              keptFolder.add(getParentFolder(key))
             }
           } else {
             throw Error(
               `remote is modified (branch 5) but size larger than ${skipSizeLargerThan}, don't know what to do: ${JSON.stringify(
-                mixedEntry
-              )}`
-            );
+                mixedEntry,
+              )}`,
+            )
           }
         }
       } else if (local !== undefined && remote === undefined) {
@@ -728,22 +726,22 @@ const getSyncPlanInplace = async (
         if (prevSync === undefined) {
           // if A is not in the previous list, A is new
           if (skipSizeLargerThan <= 0 || local.sizeEnc! <= skipSizeLargerThan) {
-            if (syncDirection === "incremental_pull_only") {
-              mixedEntry.decisionBranch = 31;
-              mixedEntry.decision = "conflict_created_then_do_nothing";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key));
+            if (syncDirection === 'incremental_pull_only') {
+              mixedEntry.decisionBranch = 31
+              mixedEntry.decision = 'conflict_created_then_do_nothing'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key))
             } else {
-              mixedEntry.decisionBranch = 6;
-              mixedEntry.decision = "local_is_created_then_push";
-              mixedEntry.change = true;
-              keptFolder.add(getParentFolder(key));
+              mixedEntry.decisionBranch = 6
+              mixedEntry.decision = 'local_is_created_then_push'
+              mixedEntry.change = true
+              keptFolder.add(getParentFolder(key))
             }
           } else {
-            mixedEntry.decisionBranch = 37;
-            mixedEntry.decision = "local_is_created_too_large_then_do_nothing";
-            mixedEntry.change = false;
-            keptFolder.add(getParentFolder(key));
+            mixedEntry.decisionBranch = 37
+            mixedEntry.decision = 'local_is_created_too_large_then_do_nothing'
+            mixedEntry.change = false
+            keptFolder.add(getParentFolder(key))
           }
         } else if (
           (prevSync.mtimeSvr === local.mtimeCli ||
@@ -751,86 +749,86 @@ const getSyncPlanInplace = async (
           prevSync.sizeEnc === local.sizeEnc
         ) {
           // if A is in the previous list and UNMODIFIED, A has been deleted by B
-          if (syncDirection === "incremental_push_only") {
-            mixedEntry.decisionBranch = 32;
-            mixedEntry.decision = "conflict_created_then_keep_local";
-            mixedEntry.change = true;
-          } else if (syncDirection === "incremental_pull_only") {
-            mixedEntry.decisionBranch = 33;
-            mixedEntry.decision = "conflict_created_then_do_nothing";
-            mixedEntry.change = false;
+          if (syncDirection === 'incremental_push_only') {
+            mixedEntry.decisionBranch = 32
+            mixedEntry.decision = 'conflict_created_then_keep_local'
+            mixedEntry.change = true
+          } else if (syncDirection === 'incremental_pull_only') {
+            mixedEntry.decisionBranch = 33
+            mixedEntry.decision = 'conflict_created_then_do_nothing'
+            mixedEntry.change = false
           } else {
-            mixedEntry.decisionBranch = 7;
-            mixedEntry.decision = "remote_is_deleted_thus_also_delete_local";
-            mixedEntry.change = true;
-            mayDeleteFolder.add(getParentFolder(key));
+            mixedEntry.decisionBranch = 7
+            mixedEntry.decision = 'remote_is_deleted_thus_also_delete_local'
+            mixedEntry.change = true
+            mayDeleteFolder.add(getParentFolder(key))
           }
         } else {
           // if A is in the previous list and MODIFIED, A has been deleted by B but modified by A
           if (skipSizeLargerThan <= 0 || local.sizeEnc! <= skipSizeLargerThan) {
-            if (syncDirection === "incremental_pull_only") {
-              mixedEntry.decisionBranch = 34;
-              mixedEntry.decision = "conflict_created_then_do_nothing";
-              mixedEntry.change = false;
-              keptFolder.add(getParentFolder(key));
+            if (syncDirection === 'incremental_pull_only') {
+              mixedEntry.decisionBranch = 34
+              mixedEntry.decision = 'conflict_created_then_do_nothing'
+              mixedEntry.change = false
+              keptFolder.add(getParentFolder(key))
             } else {
-              mixedEntry.decisionBranch = 8;
-              mixedEntry.decision = "local_is_modified_then_push";
-              mixedEntry.change = true;
-              keptFolder.add(getParentFolder(key));
+              mixedEntry.decisionBranch = 8
+              mixedEntry.decision = 'local_is_modified_then_push'
+              mixedEntry.change = true
+              keptFolder.add(getParentFolder(key))
             }
           } else {
             throw Error(
               `local is modified (branch 8) but size larger than ${skipSizeLargerThan}, don't know what to do: ${JSON.stringify(
-                mixedEntry
-              )}`
-            );
+                mixedEntry,
+              )}`,
+            )
           }
         }
       } else {
         throw Error(
           `should not reach branch -1 while getting sync plan: ${JSON.stringify(
-            mixedEntry
-          )}`
-        );
+            mixedEntry,
+          )}`,
+        )
       }
 
       if (mixedEntry.decision === undefined) {
         throw Error(
           `unexpectedly no decision of file in the end: ${JSON.stringify(
-            mixedEntry
-          )}`
-        );
+            mixedEntry,
+          )}`,
+        )
       }
     }
   }
 
-  profiler?.insert("getSyncPlanInplace: finish looping");
+  profiler?.insert('getSyncPlanInplace: finish looping')
 
-  keptFolder.delete("/");
-  keptFolder.delete("");
-  mayDeleteFolder.delete("/");
-  mayDeleteFolder.delete("");
+  keptFolder.delete('/')
+  keptFolder.delete('')
+  mayDeleteFolder.delete('/')
+  mayDeleteFolder.delete('')
 
   if (keptFolder.size > 0) {
-    throw Error(`unexpectedly keptFolder no decisions: ${[...keptFolder]}`);
+    throw Error(`unexpectedly keptFolder no decisions: ${[...keptFolder]}`)
   }
 
   // finally we want to make our life easier
-  const currTime = Date.now();
-  const currTimeFmt = unixTimeToStr(currTime);
+  const currTime = Date.now()
+  const currTimeFmt = unixTimeToStr(currTime)
   // because the path should not as / in the beginning,
   // we should be safe to add these keys:
-  const sizeofmixedEntityMappings = roughSizeOfObject(mixedEntityMappings);
-  mixedEntityMappings["/$@meta"] = {
-    key: "/$@meta", // don't mess up with the types
+  const sizeofmixedEntityMappings = roughSizeOfObject(mixedEntityMappings)
+  mixedEntityMappings['/$@meta'] = {
+    key: '/$@meta', // don't mess up with the types
     sideNotes: {
-      version: "20240525 fs version",
+      version: '20240525 fs version',
       generateTime: currTime,
       generateTimeFmt: currTimeFmt,
       service: settings.serviceType,
       concurrency: settings.concurrency,
-      hasPassword: settings.password !== "",
+      hasPassword: settings.password !== '',
       syncConfigDir: settings.syncConfigDir,
       syncUnderscoreItems: settings.syncUnderscoreItems,
       skipSizeLargerThan: settings.skipSizeLargerThan,
@@ -840,146 +838,146 @@ const getSyncPlanInplace = async (
       triggerSource: triggerSource,
       sizeof: sizeofmixedEntityMappings,
     },
-  };
+  }
 
-  profiler?.insert("getSyncPlanInplace: exit");
+  profiler?.insert('getSyncPlanInplace: exit')
   profiler?.insertSize(
-    "sizeof mixedEntityMappings in the end of getSyncPlanInplace",
-    mixedEntityMappings
-  );
-  profiler?.removeIndent();
+    'sizeof mixedEntityMappings in the end of getSyncPlanInplace',
+    mixedEntityMappings,
+  )
+  profiler?.removeIndent()
 
-  return mixedEntityMappings;
-};
+  return mixedEntityMappings
+}
 
 const splitFourStepsOnEntityMappings = (
-  mixedEntityMappings: Record<string, MixedEntity>
+  mixedEntityMappings: Record<string, MixedEntity>,
 ) => {
-  type StepArrayType = MixedEntity[] | undefined | null;
-  const onlyMarkSyncedOps: StepArrayType[] = [];
-  const folderCreationOps: StepArrayType[] = [];
-  const deletionOps: StepArrayType[] = [];
-  const uploadDownloads: StepArrayType[] = [];
+  type StepArrayType = MixedEntity[] | undefined | null
+  const onlyMarkSyncedOps: StepArrayType[] = []
+  const folderCreationOps: StepArrayType[] = []
+  const deletionOps: StepArrayType[] = []
+  const uploadDownloads: StepArrayType[] = []
 
   // from long(deep) to short(shadow)
   const sortedKeys = Object.keys(mixedEntityMappings).sort(
-    (k1, k2) => k2.length - k1.length
-  );
+    (k1, k2) => k2.length - k1.length,
+  )
 
-  let allFilesCount = 0; // how many files in entities
-  let realModifyDeleteCount = 0; // how many files to be modified / deleted
-  let realTotalCount = 0; // how many files to be delt with
+  let allFilesCount = 0 // how many files in entities
+  let realModifyDeleteCount = 0 // how many files to be modified / deleted
+  let realTotalCount = 0 // how many files to be delt with
 
   for (let i = 0; i < sortedKeys.length; ++i) {
-    const key = sortedKeys[i];
+    const key = sortedKeys[i]
 
-    if (key === "/$@meta") {
-      continue; // special
+    if (key === '/$@meta') {
+      continue // special
     }
 
-    const val = mixedEntityMappings[key];
+    const val = mixedEntityMappings[key]
 
-    if (!key.endsWith("/")) {
-      allFilesCount += 1;
+    if (!key.endsWith('/')) {
+      allFilesCount += 1
     }
 
     if (
-      val.decision === "local_is_created_too_large_then_do_nothing" ||
-      val.decision === "remote_is_created_too_large_then_do_nothing" ||
-      val.decision === "folder_to_skip"
+      val.decision === 'local_is_created_too_large_then_do_nothing' ||
+      val.decision === 'remote_is_created_too_large_then_do_nothing' ||
+      val.decision === 'folder_to_skip'
     ) {
       // pass
     } else if (
-      val.decision === "equal" ||
-      val.decision === "conflict_created_then_do_nothing" ||
-      val.decision === "folder_existed_both_then_do_nothing"
+      val.decision === 'equal' ||
+      val.decision === 'conflict_created_then_do_nothing' ||
+      val.decision === 'folder_existed_both_then_do_nothing'
     ) {
       if (
         onlyMarkSyncedOps.length === 0 ||
         onlyMarkSyncedOps[0] === undefined ||
         onlyMarkSyncedOps[0] === null
       ) {
-        onlyMarkSyncedOps[0] = [val];
+        onlyMarkSyncedOps[0] = [val]
       } else {
-        onlyMarkSyncedOps[0].push(val); // only one level is needed here
+        onlyMarkSyncedOps[0].push(val) // only one level is needed here
       }
 
       // don't need to update realTotalCount here
     } else if (
-      val.decision === "folder_existed_local_then_also_create_remote" ||
-      val.decision === "folder_existed_remote_then_also_create_local" ||
-      val.decision === "folder_to_be_created"
+      val.decision === 'folder_existed_local_then_also_create_remote' ||
+      val.decision === 'folder_existed_remote_then_also_create_local' ||
+      val.decision === 'folder_to_be_created'
     ) {
       // console.debug(`splitting folder: key=${key},val=${JSON.stringify(val)}`);
-      const level = atWhichLevel(key);
+      const level = atWhichLevel(key)
       // console.debug(`atWhichLevel: ${level}`);
-      const k = folderCreationOps[level - 1];
+      const k = folderCreationOps[level - 1]
       if (k === undefined || k === null) {
-        folderCreationOps[level - 1] = [val];
+        folderCreationOps[level - 1] = [val]
       } else {
-        k.push(val);
+        k.push(val)
       }
-      realTotalCount += 1;
+      realTotalCount += 1
     } else if (
-      val.decision === "only_history" ||
-      val.decision === "local_is_deleted_thus_also_delete_remote" ||
-      val.decision === "remote_is_deleted_thus_also_delete_local" ||
-      val.decision === "folder_to_be_deleted_on_both" ||
-      val.decision === "folder_to_be_deleted_on_local" ||
-      val.decision === "folder_to_be_deleted_on_remote"
+      val.decision === 'only_history' ||
+      val.decision === 'local_is_deleted_thus_also_delete_remote' ||
+      val.decision === 'remote_is_deleted_thus_also_delete_local' ||
+      val.decision === 'folder_to_be_deleted_on_both' ||
+      val.decision === 'folder_to_be_deleted_on_local' ||
+      val.decision === 'folder_to_be_deleted_on_remote'
     ) {
-      const level = atWhichLevel(key);
-      const k = deletionOps[level - 1];
+      const level = atWhichLevel(key)
+      const k = deletionOps[level - 1]
       if (k === undefined || k === null) {
-        deletionOps[level - 1] = [val];
+        deletionOps[level - 1] = [val]
       } else {
-        k.push(val);
+        k.push(val)
       }
-      realTotalCount += 1;
+      realTotalCount += 1
 
       if (
-        val.decision.includes("deleted") &&
-        !val.decision.includes("folder")
+        val.decision.includes('deleted') &&
+        !val.decision.includes('folder')
       ) {
         // only count files here, skip folder
-        realModifyDeleteCount += 1;
+        realModifyDeleteCount += 1
       }
     } else if (
-      val.decision === "local_is_modified_then_push" ||
-      val.decision === "remote_is_modified_then_pull" ||
-      val.decision === "local_is_created_then_push" ||
-      val.decision === "remote_is_created_then_pull" ||
-      val.decision === "conflict_created_then_keep_local" ||
-      val.decision === "conflict_created_then_keep_remote" ||
-      val.decision === "conflict_modified_then_keep_local" ||
-      val.decision === "conflict_modified_then_keep_remote"
+      val.decision === 'local_is_modified_then_push' ||
+      val.decision === 'remote_is_modified_then_pull' ||
+      val.decision === 'local_is_created_then_push' ||
+      val.decision === 'remote_is_created_then_pull' ||
+      val.decision === 'conflict_created_then_keep_local' ||
+      val.decision === 'conflict_created_then_keep_remote' ||
+      val.decision === 'conflict_modified_then_keep_local' ||
+      val.decision === 'conflict_modified_then_keep_remote'
     ) {
       if (
         uploadDownloads.length === 0 ||
         uploadDownloads[0] === undefined ||
         uploadDownloads[0] === null
       ) {
-        uploadDownloads[0] = [val];
+        uploadDownloads[0] = [val]
       } else {
-        uploadDownloads[0].push(val); // only one level is needed here
+        uploadDownloads[0].push(val) // only one level is needed here
       }
-      realTotalCount += 1;
+      realTotalCount += 1
 
       if (
-        val.decision.includes("modified") ||
-        val.decision.includes("conflict")
+        val.decision.includes('modified') ||
+        val.decision.includes('conflict')
       ) {
-        realModifyDeleteCount += 1;
+        realModifyDeleteCount += 1
       }
     } else {
-      throw Error(`unknown decision ${val.decision} for ${key}`);
+      throw Error(`unknown decision ${val.decision} for ${key}`)
     }
   }
 
   // the deletionOps should be run from max level to min level
   // right now it is sorted by level from min to max (NOT length of key!)
   // so we need to reverse it!
-  deletionOps.reverse(); // inplace reverse
+  deletionOps.reverse() // inplace reverse
 
   return {
     onlyMarkSyncedOps: onlyMarkSyncedOps,
@@ -989,12 +987,12 @@ const splitFourStepsOnEntityMappings = (
     allFilesCount: allFilesCount,
     realModifyDeleteCount: realModifyDeleteCount,
     realTotalCount: realTotalCount,
-  };
-};
+  }
+}
 
 const fullfillMTimeOfRemoteEntityInplace = (
   remote: Entity,
-  mtimeCli?: number
+  mtimeCli?: number,
 ) => {
   // TODO:
   // on 20240405, we find that dropbox's mtimeCli is not updated
@@ -1010,10 +1008,10 @@ const fullfillMTimeOfRemoteEntityInplace = (
         remote.mtimeCli >= remote.mtimeSvr))
     */
   ) {
-    remote.mtimeCli = mtimeCli;
+    remote.mtimeCli = mtimeCli
   }
-  return remote;
-};
+  return remote
+}
 
 const dispatchOperationToActualV3 = async (
   key: string,
@@ -1022,7 +1020,7 @@ const dispatchOperationToActualV3 = async (
   r: MixedEntity,
   fsLocal: FakeFs,
   fsEncrypt: FakeFsEncrypt,
-  db: InternalDBs
+  db: InternalDBs,
 ) => {
   // console.debug(
   //   `inside dispatchOperationToActualV3, key=${key}, r=${JSON.stringify(
@@ -1031,25 +1029,25 @@ const dispatchOperationToActualV3 = async (
   //     2
   //   )}`
   // );
-  if (r.decision === "only_history") {
+  if (r.decision === 'only_history') {
     await clearPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      key
-    );
+      key,
+    )
   } else if (
-    r.decision === "local_is_created_too_large_then_do_nothing" ||
-    r.decision === "remote_is_created_too_large_then_do_nothing" ||
-    r.decision === "folder_to_skip"
+    r.decision === 'local_is_created_too_large_then_do_nothing' ||
+    r.decision === 'remote_is_created_too_large_then_do_nothing' ||
+    r.decision === 'folder_to_skip'
   ) {
     // !! no actual sync being kept happens,
     // so no sync record here
     // pass
   } else if (
-    r.decision === "equal" ||
-    r.decision === "conflict_created_then_do_nothing" ||
-    r.decision === "folder_existed_both_then_do_nothing"
+    r.decision === 'equal' ||
+    r.decision === 'conflict_created_then_do_nothing' ||
+    r.decision === 'folder_existed_both_then_do_nothing'
   ) {
     // !! we MIGHT need to upsert the record,
     // so that next time we can determine the change delta
@@ -1060,113 +1058,113 @@ const dispatchOperationToActualV3 = async (
       // if we don't have prevSync, we use remote entity AND local mtime
       // as if it is "uploaded"
       if (r.remote !== undefined) {
-        let entity = r.remote;
+        let entity = r.remote
         // TODO: abstract away the dirty hack
-        entity = fullfillMTimeOfRemoteEntityInplace(entity, r.local?.mtimeCli);
+        entity = fullfillMTimeOfRemoteEntityInplace(entity, r.local?.mtimeCli)
 
         if (entity !== undefined) {
           await upsertPrevSyncRecordByVaultAndProfile(
             db,
             vaultRandomID,
             profileID,
-            entity
-          );
+            entity,
+          )
         }
       }
     }
   } else if (
-    r.decision === "local_is_modified_then_push" ||
-    r.decision === "local_is_created_then_push" ||
-    r.decision === "folder_existed_local_then_also_create_remote" ||
-    r.decision === "conflict_created_then_keep_local" ||
-    r.decision === "conflict_modified_then_keep_local"
+    r.decision === 'local_is_modified_then_push' ||
+    r.decision === 'local_is_created_then_push' ||
+    r.decision === 'folder_existed_local_then_also_create_remote' ||
+    r.decision === 'conflict_created_then_keep_local' ||
+    r.decision === 'conflict_modified_then_keep_local'
   ) {
     // console.debug(`before upload in sync, r=${JSON.stringify(r, null, 2)}`);
-    const mtimeCli = (await fsLocal.stat(r.key)).mtimeCli!;
-    const { entity } = await copyFileOrFolder(r.key, fsLocal, fsEncrypt);
+    const mtimeCli = (await fsLocal.stat(r.key)).mtimeCli!
+    const { entity } = await copyFileOrFolder(r.key, fsLocal, fsEncrypt)
     // TODO: abstract away the dirty hack
-    fullfillMTimeOfRemoteEntityInplace(entity, mtimeCli);
+    fullfillMTimeOfRemoteEntityInplace(entity, mtimeCli)
     // console.debug(`after fullfill, entity=${JSON.stringify(entity,null,2)}`)
     await upsertPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      entity
-    );
+      entity,
+    )
   } else if (
-    r.decision === "remote_is_modified_then_pull" ||
-    r.decision === "remote_is_created_then_pull" ||
-    r.decision === "conflict_created_then_keep_remote" ||
-    r.decision === "conflict_modified_then_keep_remote" ||
-    r.decision === "folder_existed_remote_then_also_create_local"
+    r.decision === 'remote_is_modified_then_pull' ||
+    r.decision === 'remote_is_created_then_pull' ||
+    r.decision === 'conflict_created_then_keep_remote' ||
+    r.decision === 'conflict_modified_then_keep_remote' ||
+    r.decision === 'folder_existed_remote_then_also_create_local'
   ) {
-    if (r.key.endsWith("/")) {
-      await fsLocal.mkdir(r.key);
+    if (r.key.endsWith('/')) {
+      await fsLocal.mkdir(r.key)
     } else {
-      await copyFile(r.key, fsEncrypt, fsLocal);
+      await copyFile(r.key, fsEncrypt, fsLocal)
     }
     await upsertPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      r.remote!
-    );
-  } else if (r.decision === "local_is_deleted_thus_also_delete_remote") {
+      r.remote!,
+    )
+  } else if (r.decision === 'local_is_deleted_thus_also_delete_remote') {
     // local is deleted, we need to delete remote now
-    await fsEncrypt.rm(r.key);
+    await fsEncrypt.rm(r.key)
     await clearPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      r.key
-    );
-  } else if (r.decision === "remote_is_deleted_thus_also_delete_local") {
+      r.key,
+    )
+  } else if (r.decision === 'remote_is_deleted_thus_also_delete_local') {
     // remote is deleted, we need to delete local now
-    await fsLocal.rm(r.key);
+    await fsLocal.rm(r.key)
     await clearPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      r.key
-    );
-  } else if (r.decision === "folder_to_be_created") {
-    await fsLocal.mkdir(r.key);
-    const { entity } = await copyFolder(r.key, fsLocal, fsEncrypt);
+      r.key,
+    )
+  } else if (r.decision === 'folder_to_be_created') {
+    await fsLocal.mkdir(r.key)
+    const { entity } = await copyFolder(r.key, fsLocal, fsEncrypt)
     await upsertPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      entity
-    );
+      entity,
+    )
     // no need to record file content for folder here
   } else if (
-    r.decision === "folder_to_be_deleted_on_both" ||
-    r.decision === "folder_to_be_deleted_on_local" ||
-    r.decision === "folder_to_be_deleted_on_remote"
+    r.decision === 'folder_to_be_deleted_on_both' ||
+    r.decision === 'folder_to_be_deleted_on_local' ||
+    r.decision === 'folder_to_be_deleted_on_remote'
   ) {
     if (
-      r.decision === "folder_to_be_deleted_on_both" ||
-      r.decision === "folder_to_be_deleted_on_local"
+      r.decision === 'folder_to_be_deleted_on_both' ||
+      r.decision === 'folder_to_be_deleted_on_local'
     ) {
-      await fsLocal.rm(r.key);
+      await fsLocal.rm(r.key)
     }
     if (
-      r.decision === "folder_to_be_deleted_on_both" ||
-      r.decision === "folder_to_be_deleted_on_remote"
+      r.decision === 'folder_to_be_deleted_on_both' ||
+      r.decision === 'folder_to_be_deleted_on_remote'
     ) {
-      await fsEncrypt.rm(r.key);
+      await fsEncrypt.rm(r.key)
     }
     await clearPrevSyncRecordByVaultAndProfile(
       db,
       vaultRandomID,
       profileID,
-      r.key
-    );
+      r.key,
+    )
     // no need to record file content for folder here
   } else {
-    throw Error(`don't know how to dispatch decision: ${JSON.stringify(r)}`);
+    throw Error(`don't know how to dispatch decision: ${JSON.stringify(r)}`)
   }
-};
+}
 
 export const doActualSync = async (
   mixedEntityMappings: Record<string, MixedEntity>,
@@ -1179,11 +1177,11 @@ export const doActualSync = async (
   getProtectModifyPercentageErrorStrFunc: any,
   db: InternalDBs,
   profiler: Profiler | undefined,
-  callbackSyncProcess?: any
+  callbackSyncProcess?: any,
 ) => {
-  profiler?.addIndent();
-  profiler?.insert("doActualSync: enter");
-  console.debug(`concurrency === ${concurrency}`);
+  profiler?.addIndent()
+  profiler?.insert('doActualSync: enter')
+  console.debug(`concurrency === ${concurrency}`)
   const {
     onlyMarkSyncedOps,
     folderCreationOps,
@@ -1192,27 +1190,27 @@ export const doActualSync = async (
     allFilesCount,
     realModifyDeleteCount,
     realTotalCount,
-  } = splitFourStepsOnEntityMappings(mixedEntityMappings);
+  } = splitFourStepsOnEntityMappings(mixedEntityMappings)
   // console.debug(`onlyMarkSyncedOps: ${JSON.stringify(onlyMarkSyncedOps)}`);
   // console.debug(`folderCreationOps: ${JSON.stringify(folderCreationOps)}`);
   // console.debug(`deletionOps: ${JSON.stringify(deletionOps)}`);
   // console.debug(`uploadDownloads: ${JSON.stringify(uploadDownloads)}`);
-  console.debug(`allFilesCount: ${allFilesCount}`);
-  console.debug(`realModifyDeleteCount: ${realModifyDeleteCount}`);
-  console.debug(`realTotalCount: ${realTotalCount}`);
-  profiler?.insert("doActualSync: finish splitting steps");
+  console.debug(`allFilesCount: ${allFilesCount}`)
+  console.debug(`realModifyDeleteCount: ${realModifyDeleteCount}`)
+  console.debug(`realTotalCount: ${realTotalCount}`)
+  profiler?.insert('doActualSync: finish splitting steps')
 
   profiler?.insertSize(
-    "doActualSync: sizeof onlyMarkSyncedOps",
-    onlyMarkSyncedOps
-  );
+    'doActualSync: sizeof onlyMarkSyncedOps',
+    onlyMarkSyncedOps,
+  )
   profiler?.insertSize(
-    "doActualSync: sizeof folderCreationOps",
-    folderCreationOps
-  );
-  profiler?.insertSize("doActualSync: sizeof realTotalCount", deletionOps);
+    'doActualSync: sizeof folderCreationOps',
+    folderCreationOps,
+  )
+  profiler?.insertSize('doActualSync: sizeof realTotalCount', deletionOps)
 
-  console.debug(`protectModifyPercentage: ${protectModifyPercentage}`);
+  console.debug(`protectModifyPercentage: ${protectModifyPercentage}`)
 
   if (
     protectModifyPercentage >= 0 &&
@@ -1232,12 +1230,12 @@ export const doActualSync = async (
       const errorStr: string = getProtectModifyPercentageErrorStrFunc(
         protectModifyPercentage,
         realModifyDeleteCount,
-        allFilesCount
-      );
+        allFilesCount,
+      )
 
-      profiler?.insert("doActualSync: error branch");
-      profiler?.removeIndent();
-      throw Error(errorStr);
+      profiler?.insert('doActualSync: error branch')
+      profiler?.removeIndent()
+      throw Error(errorStr)
     }
   }
 
@@ -1246,39 +1244,39 @@ export const doActualSync = async (
     folderCreationOps,
     deletionOps,
     uploadDownloads,
-  ];
+  ]
   const logTexts = [
     `1. record the items already being synced`,
     `2. create all folders from shadowest to deepest`,
     `3. delete files and folders from deepest to shadowest`,
     `4. upload or download files in parallel, with the desired concurrency=${concurrency}`,
-  ];
+  ]
 
-  let realCounter = 0;
+  let realCounter = 0
   for (let i = 0; i < nested.length; ++i) {
-    profiler?.addIndent();
-    profiler?.insert(`doActualSync: step ${i} start`);
-    console.debug(logTexts[i]);
+    profiler?.addIndent()
+    profiler?.insert(`doActualSync: step ${i} start`)
+    console.debug(logTexts[i])
 
-    const operations = nested[i];
+    const operations = nested[i]
     // console.debug(`curr operations=${JSON.stringify(operations, null, 2)}`);
 
     for (let j = 0; j < operations.length; ++j) {
-      const singleLevelOps = operations[j];
+      const singleLevelOps = operations[j]
       // console.debug(
       //   `singleLevelOps=${JSON.stringify(singleLevelOps, null, 2)}`
       // );
       if (singleLevelOps === undefined || singleLevelOps === null) {
-        continue;
+        continue
       }
 
-      const queue = new PQueue({ concurrency: concurrency, autoStart: true });
-      const potentialErrors: Error[] = [];
-      let tooManyErrors = false;
+      const queue = new PQueue({ concurrency: concurrency, autoStart: true })
+      const potentialErrors: Error[] = []
+      let tooManyErrors = false
 
       for (let k = 0; k < singleLevelOps.length; ++k) {
-        const val = singleLevelOps[k];
-        const key = val.key;
+        const val = singleLevelOps[k]
+        const key = val.key
 
         const fn = async () => {
           // console.debug(
@@ -1289,10 +1287,10 @@ export const doActualSync = async (
             realCounter,
             realTotalCount,
             key,
-            val.decision
-          );
+            val.decision,
+          )
 
-          realCounter += 1;
+          realCounter += 1
 
           await dispatchOperationToActualV3(
             key,
@@ -1301,54 +1299,54 @@ export const doActualSync = async (
             val,
             fsLocal,
             fsEncrypt,
-            db
-          );
+            db,
+          )
 
           // console.debug(`finished ${key}`);
-        };
+        }
 
         queue.add(fn).catch((e) => {
-          const msg = `${key}: ${e.message}`;
-          potentialErrors.push(new Error(msg));
+          const msg = `${key}: ${e.message}`
+          potentialErrors.push(new Error(msg))
           if (potentialErrors.length >= 3) {
-            tooManyErrors = true;
-            queue.pause();
-            queue.clear();
+            tooManyErrors = true
+            queue.pause()
+            queue.clear()
           }
-        });
+        })
       }
 
-      await queue.onIdle();
+      await queue.onIdle()
 
       if (potentialErrors.length > 0) {
         if (tooManyErrors) {
           potentialErrors.push(
-            new Error("too many errors, stop the remaining tasks")
-          );
+            new Error('too many errors, stop the remaining tasks'),
+          )
         }
-        throw new AggregateError(potentialErrors);
+        throw new AggregateError(potentialErrors)
       }
     }
 
-    profiler?.insert(`doActualSync: step ${i} end`);
-    profiler?.removeIndent();
+    profiler?.insert(`doActualSync: step ${i} end`)
+    profiler?.removeIndent()
   }
 
-  profiler?.insert(`doActualSync: exit`);
-  profiler?.removeIndent();
-};
+  profiler?.insert(`doActualSync: exit`)
+  profiler?.removeIndent()
+}
 
 export type SyncStatusType =
-  | "idle"
-  | "preparing"
-  | "getting_remote_files_list"
-  | "getting_local_meta"
-  | "getting_local_prev_sync"
-  | "checking_password"
-  | "generating_plan"
-  | "syncing"
-  | "cleaning"
-  | "finish";
+  | 'idle'
+  | 'preparing'
+  | 'getting_remote_files_list'
+  | 'getting_local_meta'
+  | 'getting_local_prev_sync'
+  | 'checking_password'
+  | 'generating_plan'
+  | 'syncing'
+  | 'cleaning'
+  | 'finish'
 
 /**
  * Every input variable should be mockable, so that testable.
@@ -1372,76 +1370,76 @@ export async function syncer(
   statusBarFunc?: (
     s: SyncTriggerSourceType,
     step: number,
-    everythingOk: boolean
+    everythingOk: boolean,
   ) => any,
-  callbackSyncProcess?: any
+  callbackSyncProcess?: any,
 ) {
-  console.info(`starting sync.`);
-  markIsSyncingFunc(true);
+  console.info(`starting sync.`)
+  markIsSyncingFunc(true)
 
-  let everythingOk = true;
-  let step = 0;
+  let everythingOk = true
+  let step = 0
 
   try {
     // try mode?
-    await notifyFunc?.(triggerSource, step);
+    await notifyFunc?.(triggerSource, step)
 
-    step = 1;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
-    profiler?.insert("start big sync func");
+    step = 1
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
+    profiler?.insert('start big sync func')
 
-    step = 2;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
+    step = 2
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
     if (fsEncrypt.innerFs !== fsRemote) {
-      throw Error(`your enc should has inner of the remote`);
+      throw Error(`your enc should has inner of the remote`)
     }
-    const passwordCheckResult = await fsEncrypt.isPasswordOk();
+    const passwordCheckResult = await fsEncrypt.isPasswordOk()
     if (!passwordCheckResult.ok) {
-      throw Error(passwordCheckResult.reason);
+      throw Error(passwordCheckResult.reason)
     }
     profiler?.insert(
-      `finish step${step} (list partial remote and check password)`
-    );
+      `finish step${step} (list partial remote and check password)`,
+    )
 
-    step = 3;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
-    const remoteEntityList = await fsEncrypt.walk();
+    step = 3
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
+    const remoteEntityList = await fsEncrypt.walk()
     // console.debug(`remoteEntityList:`);
     // console.debug(remoteEntityList);
-    profiler?.insert(`finish step${step} (list remote)`);
+    profiler?.insert(`finish step${step} (list remote)`)
 
-    step = 4;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
-    const localEntityList = await fsLocal.walk();
+    step = 4
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
+    const localEntityList = await fsLocal.walk()
     // console.debug(`localEntityList:`);
     // console.debug(localEntityList);
-    profiler?.insert(`finish step${step} (list local)`);
+    profiler?.insert(`finish step${step} (list local)`)
 
-    step = 5;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
+    step = 5
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
     const prevSyncEntityList = await getAllPrevSyncRecordsByVaultAndProfile(
       db,
       vaultRandomID,
-      profileID
-    );
+      profileID,
+    )
     // console.debug(`prevSyncEntityList:`);
     // console.debug(prevSyncEntityList);
-    profiler?.insert(`finish step${step} (prev sync)`);
+    profiler?.insert(`finish step${step} (prev sync)`)
 
-    step = 6;
-    await notifyFunc?.(triggerSource, step);
-    await ribboonFunc?.(triggerSource, step);
-    await statusBarFunc?.(triggerSource, step, everythingOk);
+    step = 6
+    await notifyFunc?.(triggerSource, step)
+    await ribboonFunc?.(triggerSource, step)
+    await statusBarFunc?.(triggerSource, step, everythingOk)
     let mixedEntityMappings = await ensembleMixedEnties(
       localEntityList,
       prevSyncEntityList,
@@ -1452,41 +1450,41 @@ export async function syncer(
       settings.ignorePaths ?? [],
       fsEncrypt,
       settings.serviceType,
-      profiler
-    );
-    profiler?.insert(`finish step${step} (build partial mixedEntity)`);
+      profiler,
+    )
+    profiler?.insert(`finish step${step} (build partial mixedEntity)`)
 
     mixedEntityMappings = await getSyncPlanInplace(
       mixedEntityMappings,
-      settings.howToCleanEmptyFolder ?? "clean_both",
+      settings.howToCleanEmptyFolder ?? 'clean_both',
       settings.skipSizeLargerThan ?? -1,
-      settings.conflictAction ?? "keep_newer",
-      settings.syncDirection ?? "bidirectional",
+      settings.conflictAction ?? 'keep_newer',
+      settings.syncDirection ?? 'bidirectional',
       profiler,
       settings,
-      triggerSource
-    );
-    console.debug(`mixedEntityMappings:`);
-    console.debug(mixedEntityMappings); // for debugging
-    profiler?.insert("finish building full sync plan");
+      triggerSource,
+    )
+    console.debug(`mixedEntityMappings:`)
+    console.debug(mixedEntityMappings) // for debugging
+    profiler?.insert('finish building full sync plan')
 
     await insertSyncPlanRecordByVault(
       db,
       mixedEntityMappings,
       vaultRandomID,
-      settings.serviceType
-    );
-    profiler?.insert("finish writing sync plan");
-    profiler?.insert(`finish step${step} (make plan)`);
+      settings.serviceType,
+    )
+    profiler?.insert('finish writing sync plan')
+    profiler?.insert(`finish step${step} (make plan)`)
 
     // The operations above are almost read only and kind of safe.
     // The operations below begins to write or delete (!!!) something.
 
-    step = 7;
-    if (triggerSource !== "dry") {
-      await notifyFunc?.(triggerSource, step);
-      await ribboonFunc?.(triggerSource, step);
-      await statusBarFunc?.(triggerSource, step, everythingOk);
+    step = 7
+    if (triggerSource !== 'dry') {
+      await notifyFunc?.(triggerSource, step)
+      await ribboonFunc?.(triggerSource, step)
+      await statusBarFunc?.(triggerSource, step, everythingOk)
       await doActualSync(
         mixedEntityMappings,
         fsLocal,
@@ -1498,35 +1496,35 @@ export async function syncer(
         getProtectModifyPercentageErrorStrFunc,
         db,
         profiler,
-        callbackSyncProcess
-      );
-      profiler?.insert(`finish step${step} (actual sync)`);
+        callbackSyncProcess,
+      )
+      profiler?.insert(`finish step${step} (actual sync)`)
     } else {
-      await notifyFunc?.(triggerSource, step);
-      await ribboonFunc?.(triggerSource, step);
-      await statusBarFunc?.(triggerSource, step, everythingOk);
+      await notifyFunc?.(triggerSource, step)
+      await ribboonFunc?.(triggerSource, step)
+      await statusBarFunc?.(triggerSource, step, everythingOk)
       profiler?.insert(
-        `finish step${step} (skip actual sync because of dry run)`
-      );
+        `finish step${step} (skip actual sync because of dry run)`,
+      )
     }
   } catch (error: any) {
-    profiler?.insert("start error branch");
-    everythingOk = false;
-    await errNotifyFunc?.(triggerSource, error as Error);
+    profiler?.insert('start error branch')
+    everythingOk = false
+    await errNotifyFunc?.(triggerSource, error as Error)
 
-    profiler?.insert("finish error branch");
+    profiler?.insert('finish error branch')
   } finally {
   }
 
-  profiler?.insert("finish syncRun");
+  profiler?.insert('finish syncRun')
   // console.debug(profiler?.toString());
-  await profiler?.save(db, vaultRandomID, settings.serviceType);
+  await profiler?.save(db, vaultRandomID, settings.serviceType)
 
-  step = 8;
-  await notifyFunc?.(triggerSource, step);
-  await ribboonFunc?.(triggerSource, step);
-  await statusBarFunc?.(triggerSource, step, everythingOk);
+  step = 8
+  await notifyFunc?.(triggerSource, step)
+  await ribboonFunc?.(triggerSource, step)
+  await statusBarFunc?.(triggerSource, step, everythingOk)
 
-  console.info(`endding sync.`);
-  markIsSyncingFunc(false);
+  console.info(`endding sync.`)
+  markIsSyncingFunc(false)
 }

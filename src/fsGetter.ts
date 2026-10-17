@@ -1,7 +1,7 @@
 // Changed for Remotely Save Lite (2026): Dropbox only
-import type { RemotelySavePluginSettings } from "./baseTypes";
-import type { FakeFs } from "./fsAll";
-import { FakeFsDropbox } from "./fsDropbox";
+import type { RemotelySavePluginSettings } from './baseTypes'
+import type { FakeFs } from './fsAll'
+import { FakeFsDropbox } from './fsDropbox'
 
 /**
  * To avoid circular dependency, we need a new file here.
@@ -9,16 +9,16 @@ import { FakeFsDropbox } from "./fsDropbox";
 export function getClient(
   settings: RemotelySavePluginSettings,
   vaultName: string,
-  saveUpdatedConfigFunc: () => Promise<any>
+  saveUpdatedConfigFunc: () => Promise<any>,
 ): FakeFs {
   switch (settings.serviceType) {
-    case "dropbox":
+    case 'dropbox':
       return new FakeFsDropbox(
         settings.dropbox,
         vaultName,
-        saveUpdatedConfigFunc
-      );
+        saveUpdatedConfigFunc,
+      )
     default:
-      throw Error(`cannot init client for serviceType=${settings.serviceType}`);
+      throw Error(`cannot init client for serviceType=${settings.serviceType}`)
   }
 }

@@ -4,234 +4,234 @@
  * To avoid circular dependency.
  */
 
-import type { LangTypeAndAuto } from "./i18n";
+import type { LangTypeAndAuto } from './i18n'
 
 declare global {
-  var DEFAULT_DROPBOX_APP_KEY: string;
+  var DEFAULT_DROPBOX_APP_KEY: string
 }
 
-export const DROPBOX_APP_KEY = global.DEFAULT_DROPBOX_APP_KEY;
+export const DROPBOX_APP_KEY = global.DEFAULT_DROPBOX_APP_KEY
 
-export const DEFAULT_CONTENT_TYPE = "application/octet-stream";
+export const DEFAULT_CONTENT_TYPE = 'application/octet-stream'
 
 /**
  * The remote services this plugin syncs with. A new one is a member here,
  * its own `fs<Name>.ts` (a FakeFs), and its own part of the settings tab.
  */
-export type SUPPORTED_SERVICES_TYPE = "dropbox";
+export type SUPPORTED_SERVICES_TYPE = 'dropbox'
 
 export interface DropboxConfig {
-  accessToken: string;
-  clientID: string;
-  refreshToken: string;
-  accessTokenExpiresInSeconds: number;
-  accessTokenExpiresAtTime: number;
-  accountID: string;
-  username: string;
-  credentialsShouldBeDeletedAtTime?: number;
-  remoteBaseDir?: string;
+  accessToken: string
+  clientID: string
+  refreshToken: string
+  accessTokenExpiresInSeconds: number
+  accessTokenExpiresAtTime: number
+  accountID: string
+  username: string
+  credentialsShouldBeDeletedAtTime?: number
+  remoteBaseDir?: string
 }
 
 export type SyncDirectionType =
-  | "bidirectional"
-  | "incremental_pull_only"
-  | "incremental_push_only";
+  | 'bidirectional'
+  | 'incremental_pull_only'
+  | 'incremental_push_only'
 
-export type CipherMethodType = "rclone-base64" | "openssl-base64" | "unknown";
+export type CipherMethodType = 'rclone-base64' | 'openssl-base64' | 'unknown'
 
-export type QRExportType = "basic_and_advanced" | SUPPORTED_SERVICES_TYPE;
+export type QRExportType = 'basic_and_advanced' | SUPPORTED_SERVICES_TYPE
 
 export interface ProfilerConfig {
-  enable?: boolean;
-  enablePrinting?: boolean;
-  recordSize?: boolean;
+  enable?: boolean
+  enablePrinting?: boolean
+  recordSize?: boolean
 }
 
 export interface RemotelySavePluginSettings {
-  dropbox: DropboxConfig;
+  dropbox: DropboxConfig
 
-  password: string;
-  serviceType: SUPPORTED_SERVICES_TYPE;
-  currLogLevel?: string;
-  autoRunEveryMilliseconds?: number;
-  initRunAfterMilliseconds?: number;
-  syncOnSaveAfterMilliseconds?: number;
+  password: string
+  serviceType: SUPPORTED_SERVICES_TYPE
+  currLogLevel?: string
+  autoRunEveryMilliseconds?: number
+  initRunAfterMilliseconds?: number
+  syncOnSaveAfterMilliseconds?: number
 
-  concurrency?: number;
-  syncConfigDir?: boolean;
-  syncUnderscoreItems?: boolean;
-  lang?: LangTypeAndAuto;
-  agreeToUseSyncV3?: boolean;
-  skipSizeLargerThan?: number;
-  ignorePaths?: string[];
-  enableStatusBarInfo?: boolean;
-  deleteToWhere?: "system" | "obsidian";
-  conflictAction?: ConflictActionType;
+  concurrency?: number
+  syncConfigDir?: boolean
+  syncUnderscoreItems?: boolean
+  lang?: LangTypeAndAuto
+  agreeToUseSyncV3?: boolean
+  skipSizeLargerThan?: number
+  ignorePaths?: string[]
+  enableStatusBarInfo?: boolean
+  deleteToWhere?: 'system' | 'obsidian'
+  conflictAction?: ConflictActionType
 
-  protectModifyPercentage?: number;
-  syncDirection?: SyncDirectionType;
+  protectModifyPercentage?: number
+  syncDirection?: SyncDirectionType
 
-  obfuscateSettingFile?: boolean;
+  obfuscateSettingFile?: boolean
 
-  enableMobileStatusBar?: boolean;
+  enableMobileStatusBar?: boolean
 
-  encryptionMethod?: CipherMethodType;
+  encryptionMethod?: CipherMethodType
 
-  profiler?: ProfilerConfig;
-
-  /**
-   * @deprecated
-   */
-  agreeToUploadExtraMetadata?: boolean;
+  profiler?: ProfilerConfig
 
   /**
    * @deprecated
    */
-  vaultRandomID?: string;
+  agreeToUploadExtraMetadata?: boolean
 
   /**
    * @deprecated
    */
-  logToDB?: boolean;
+  vaultRandomID?: string
 
   /**
    * @deprecated
    */
-  howToCleanEmptyFolder?: EmptyFolderCleanType;
+  logToDB?: boolean
+
+  /**
+   * @deprecated
+   */
+  howToCleanEmptyFolder?: EmptyFolderCleanType
 }
 
-export const COMMAND_URI = "remotely-save-lite";
-export const COMMAND_CALLBACK = "remotely-save-lite-cb";
-export const COMMAND_CALLBACK_DROPBOX = "remotely-save-lite-cb-dropbox";
+export const COMMAND_URI = 'remotely-save-lite'
+export const COMMAND_CALLBACK = 'remotely-save-lite-cb'
+export const COMMAND_CALLBACK_DROPBOX = 'remotely-save-lite-cb-dropbox'
 
 export interface UriParams {
-  func?: string;
-  vault?: string;
-  ver?: string;
-  data?: string;
+  func?: string
+  vault?: string
+  ver?: string
+  data?: string
 }
 
 // 80 days
-export const OAUTH2_FORCE_EXPIRE_MILLISECONDS = 1000 * 60 * 60 * 24 * 80;
+export const OAUTH2_FORCE_EXPIRE_MILLISECONDS = 1000 * 60 * 60 * 24 * 80
 
-export type EmptyFolderCleanType = "skip" | "clean_both";
+export type EmptyFolderCleanType = 'skip' | 'clean_both'
 
-export type ConflictActionType = "keep_newer" | "keep_larger";
+export type ConflictActionType = 'keep_newer' | 'keep_larger'
 
 export type DecisionTypeForMixedEntity =
-  | "only_history"
-  | "equal"
-  | "local_is_modified_then_push"
-  | "remote_is_modified_then_pull"
-  | "local_is_created_then_push"
-  | "remote_is_created_then_pull"
-  | "local_is_created_too_large_then_do_nothing"
-  | "remote_is_created_too_large_then_do_nothing"
-  | "local_is_deleted_thus_also_delete_remote"
-  | "remote_is_deleted_thus_also_delete_local"
-  | "conflict_created_then_keep_local"
-  | "conflict_created_then_keep_remote"
-  | "conflict_created_then_do_nothing"
-  | "conflict_modified_then_keep_local"
-  | "conflict_modified_then_keep_remote"
-  | "folder_existed_both_then_do_nothing"
-  | "folder_existed_local_then_also_create_remote"
-  | "folder_existed_remote_then_also_create_local"
-  | "folder_to_be_created"
-  | "folder_to_skip"
-  | "folder_to_be_deleted_on_both"
-  | "folder_to_be_deleted_on_remote"
-  | "folder_to_be_deleted_on_local";
+  | 'only_history'
+  | 'equal'
+  | 'local_is_modified_then_push'
+  | 'remote_is_modified_then_pull'
+  | 'local_is_created_then_push'
+  | 'remote_is_created_then_pull'
+  | 'local_is_created_too_large_then_do_nothing'
+  | 'remote_is_created_too_large_then_do_nothing'
+  | 'local_is_deleted_thus_also_delete_remote'
+  | 'remote_is_deleted_thus_also_delete_local'
+  | 'conflict_created_then_keep_local'
+  | 'conflict_created_then_keep_remote'
+  | 'conflict_created_then_do_nothing'
+  | 'conflict_modified_then_keep_local'
+  | 'conflict_modified_then_keep_remote'
+  | 'folder_existed_both_then_do_nothing'
+  | 'folder_existed_local_then_also_create_remote'
+  | 'folder_existed_remote_then_also_create_local'
+  | 'folder_to_be_created'
+  | 'folder_to_skip'
+  | 'folder_to_be_deleted_on_both'
+  | 'folder_to_be_deleted_on_remote'
+  | 'folder_to_be_deleted_on_local'
 
 /**
  * uniform representation
  * everything should be flat and primitive, so that we can copy.
  */
 export interface Entity {
-  key?: string;
-  keyEnc?: string;
-  keyRaw: string;
-  mtimeCli?: number;
-  mtimeCliFmt?: string;
-  ctimeCli?: number;
-  ctimeCliFmt?: string;
-  mtimeSvr?: number;
-  mtimeSvrFmt?: string;
-  prevSyncTime?: number;
-  prevSyncTimeFmt?: string;
-  size?: number; // might be unknown or to be filled
-  sizeEnc?: number;
-  sizeRaw: number;
-  hash?: string;
-  etag?: string;
-  synthesizedFolder?: boolean;
-  synthesizedFile?: boolean;
+  key?: string
+  keyEnc?: string
+  keyRaw: string
+  mtimeCli?: number
+  mtimeCliFmt?: string
+  ctimeCli?: number
+  ctimeCliFmt?: string
+  mtimeSvr?: number
+  mtimeSvrFmt?: string
+  prevSyncTime?: number
+  prevSyncTimeFmt?: string
+  size?: number // might be unknown or to be filled
+  sizeEnc?: number
+  sizeRaw: number
+  hash?: string
+  etag?: string
+  synthesizedFolder?: boolean
+  synthesizedFile?: boolean
 }
 
 export interface UploadedType {
-  entity: Entity;
-  mtimeCli?: number;
+  entity: Entity
+  mtimeCli?: number
 }
 
 /**
  * A replacement of FileOrFolderMixedState
  */
 export interface MixedEntity {
-  key: string;
-  local?: Entity;
-  prevSync?: Entity;
-  remote?: Entity;
+  key: string
+  local?: Entity
+  prevSync?: Entity
+  remote?: Entity
 
-  decisionBranch?: number;
-  decision?: DecisionTypeForMixedEntity;
-  conflictAction?: ConflictActionType;
+  decisionBranch?: number
+  decision?: DecisionTypeForMixedEntity
+  conflictAction?: ConflictActionType
 
-  change?: boolean;
+  change?: boolean
 
-  sideNotes?: any;
+  sideNotes?: any
 }
 
 /**
  * @deprecated
  */
 export interface FileOrFolderMixedState {
-  key: string;
-  existLocal?: boolean;
-  existRemote?: boolean;
-  mtimeLocal?: number;
-  mtimeRemote?: number;
-  deltimeLocal?: number;
-  deltimeRemote?: number;
-  sizeLocal?: number;
-  sizeLocalEnc?: number;
-  sizeRemote?: number;
-  sizeRemoteEnc?: number;
-  changeRemoteMtimeUsingMapping?: boolean;
-  changeLocalMtimeUsingMapping?: boolean;
-  decision?: string; // old DecisionType is deleted, fallback to string
-  decisionBranch?: number;
-  syncDone?: "done";
-  remoteEncryptedKey?: string;
+  key: string
+  existLocal?: boolean
+  existRemote?: boolean
+  mtimeLocal?: number
+  mtimeRemote?: number
+  deltimeLocal?: number
+  deltimeRemote?: number
+  sizeLocal?: number
+  sizeLocalEnc?: number
+  sizeRemote?: number
+  sizeRemoteEnc?: number
+  changeRemoteMtimeUsingMapping?: boolean
+  changeLocalMtimeUsingMapping?: boolean
+  decision?: string // old DecisionType is deleted, fallback to string
+  decisionBranch?: number
+  syncDone?: 'done'
+  remoteEncryptedKey?: string
 
-  mtimeLocalFmt?: string;
-  mtimeRemoteFmt?: string;
-  deltimeLocalFmt?: string;
-  deltimeRemoteFmt?: string;
+  mtimeLocalFmt?: string
+  mtimeRemoteFmt?: string
+  deltimeLocalFmt?: string
+  deltimeRemoteFmt?: string
 }
 
-export const DEFAULT_DEBUG_FOLDER = "_debug_remotely_save_lite/";
+export const DEFAULT_DEBUG_FOLDER = '_debug_remotely_save_lite/'
 export const DEFAULT_SYNC_PLANS_HISTORY_FILE_PREFIX =
-  "sync_plans_hist_exported_on_";
-export const DEFAULT_LOG_HISTORY_FILE_PREFIX = "log_hist_exported_on_";
+  'sync_plans_hist_exported_on_'
+export const DEFAULT_LOG_HISTORY_FILE_PREFIX = 'log_hist_exported_on_'
 export const DEFAULT_PROFILER_RESULT_FILE_PREFIX =
-  "profiler_results_exported_on_";
+  'profiler_results_exported_on_'
 
 export type SyncTriggerSourceType =
-  | "manual"
-  | "dry"
-  | "auto"
-  | "auto_once_init"
-  | "auto_sync_on_save";
+  | 'manual'
+  | 'dry'
+  | 'auto'
+  | 'auto_once_init'
+  | 'auto_sync_on_save'
 
-export const REMOTELY_SAVE_VERSION_2022 = "0.3.25";
-export const REMOTELY_SAVE_VERSION_2024PREPARE = "0.3.32";
+export const REMOTELY_SAVE_VERSION_2022 = '0.3.25'
+export const REMOTELY_SAVE_VERSION_2024PREPARE = '0.3.32'

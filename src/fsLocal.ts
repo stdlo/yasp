@@ -1,70 +1,70 @@
 // Changed for Remotely Save Lite (2026): no bookmarks-only sync, which the free engine skips
-import { DEFAULT_DEBUG_FOLDER, type Entity } from "./baseTypes";
-import { FakeFs } from "./fsAll";
+import { DEFAULT_DEBUG_FOLDER, type Entity } from './baseTypes'
+import { FakeFs } from './fsAll'
 
-import { TFile, TFolder, type Vault } from "obsidian";
-import { mkdirpInVault, statFix, unixTimeToStr } from "./misc";
-import { listFilesInObsFolder } from "./obsFolderLister";
-import type { Profiler } from "./profiler";
+import { TFile, TFolder, type Vault } from 'obsidian'
+import { mkdirpInVault, statFix, unixTimeToStr } from './misc'
+import { listFilesInObsFolder } from './obsFolderLister'
+import type { Profiler } from './profiler'
 
 export class FakeFsLocal extends FakeFs {
-  vault: Vault;
-  syncConfigDir: boolean;
-  configDir: string;
-  pluginID: string;
-  profiler: Profiler | undefined;
-  deleteToWhere: "obsidian" | "system";
-  kind: "local";
+  vault: Vault
+  syncConfigDir: boolean
+  configDir: string
+  pluginID: string
+  profiler: Profiler | undefined
+  deleteToWhere: 'obsidian' | 'system'
+  kind: 'local'
   constructor(
     vault: Vault,
     syncConfigDir: boolean,
     configDir: string,
     pluginID: string,
     profiler: Profiler | undefined,
-    deleteToWhere: "obsidian" | "system"
+    deleteToWhere: 'obsidian' | 'system',
   ) {
-    super();
+    super()
 
-    this.vault = vault;
-    this.syncConfigDir = syncConfigDir;
-    this.configDir = configDir;
-    this.pluginID = pluginID;
-    this.profiler = profiler;
-    this.deleteToWhere = deleteToWhere;
-    this.kind = "local";
+    this.vault = vault
+    this.syncConfigDir = syncConfigDir
+    this.configDir = configDir
+    this.pluginID = pluginID
+    this.profiler = profiler
+    this.deleteToWhere = deleteToWhere
+    this.kind = 'local'
   }
 
   async walk(): Promise<Entity[]> {
-    this.profiler?.addIndent();
-    this.profiler?.insert("enter walk for local");
-    const local: Entity[] = [];
+    this.profiler?.addIndent()
+    this.profiler?.insert('enter walk for local')
+    const local: Entity[] = []
 
-    const localTAbstractFiles = this.vault.getAllLoadedFiles();
-    this.profiler?.insert("finish getting walk for local");
+    const localTAbstractFiles = this.vault.getAllLoadedFiles()
+    this.profiler?.insert('finish getting walk for local')
     for (const entry of localTAbstractFiles) {
-      let r: Entity | undefined = undefined;
-      let key = entry.path;
-      if (key.startsWith("/")) {
+      let r: Entity | undefined = undefined
+      let key = entry.path
+      if (key.startsWith('/')) {
         // why?
         // just remove leading slash /
-        key = key.slice(1);
+        key = key.slice(1)
       }
 
-      if (entry.path === "/" || entry.path === "") {
+      if (entry.path === '/' || entry.path === '') {
         // ignore
-        continue;
+        continue
       } else if (entry instanceof TFile) {
-        let mtimeLocal: number | undefined = entry.stat.mtime;
+        let mtimeLocal: number | undefined = entry.stat.mtime
         if (mtimeLocal <= 0) {
-          mtimeLocal = entry.stat.ctime;
+          mtimeLocal = entry.stat.ctime
         }
         if (mtimeLocal === 0) {
-          mtimeLocal = undefined;
+          mtimeLocal = undefined
         }
         if (mtimeLocal === undefined) {
           throw Error(
-            `Your file has last modified time 0: ${key}, don't know how to deal with it`
-          );
+            `Your file has last modified time 0: ${key}, don't know how to deal with it`,
+          )
         }
         r = {
           key: key, // local always unencrypted
@@ -73,17 +73,17 @@ export class FakeFsLocal extends FakeFs {
           mtimeSvr: mtimeLocal,
           size: entry.stat.size, // local always unencrypted
           sizeRaw: entry.stat.size,
-        };
+        }
       } else if (entry instanceof TFolder) {
-        key = `${key}/`;
+        key = `${key}/`
         r = {
           key: key,
           keyRaw: key,
           size: 0,
           sizeRaw: 0,
-        };
+        }
       } else {
-        throw Error(`unexpected ${entry}`);
+        throw Error(`unexpected ${entry}`)
       }
 
       if (r.keyRaw.startsWith(DEFAULT_DEBUG_FOLDER)) {
@@ -91,41 +91,41 @@ export class FakeFsLocal extends FakeFs {
         // which should always not involved in sync
         // continue;
       } else {
-        local.push(r);
+        local.push(r)
       }
     }
 
-    this.profiler?.insert("finish transforming walk for local");
+    this.profiler?.insert('finish transforming walk for local')
 
     if (this.syncConfigDir) {
-      this.profiler?.insert("into syncConfigDir");
+      this.profiler?.insert('into syncConfigDir')
       const syncFiles = await listFilesInObsFolder(
         this.configDir,
         this.vault,
-        this.pluginID
-      );
+        this.pluginID,
+      )
       // console.debug(`syncFiles in obs: ${JSON.stringify(syncFiles, null, 2)}`);
       for (const f of syncFiles) {
-        local.push(f);
+        local.push(f)
       }
-      this.profiler?.insert("finish syncConfigDir");
+      this.profiler?.insert('finish syncConfigDir')
     }
 
-    this.profiler?.insert("finish walk for local");
-    this.profiler?.removeIndent();
-    return local;
+    this.profiler?.insert('finish walk for local')
+    this.profiler?.removeIndent()
+    return local
   }
 
   async walkPartial(): Promise<Entity[]> {
-    return await this.walk();
+    return await this.walk()
   }
 
   async stat(key: string): Promise<Entity> {
-    const statRes = await statFix(this.vault, key);
+    const statRes = await statFix(this.vault, key)
     if (statRes === undefined || statRes === null) {
-      throw Error(`${key} does not exist! cannot stat for local`);
+      throw Error(`${key} does not exist! cannot stat for local`)
     }
-    const isFolder = statRes.type === "folder";
+    const isFolder = statRes.type === 'folder'
     return {
       key: isFolder ? `${key}/` : key, // local always unencrypted
       keyRaw: isFolder ? `${key}/` : key,
@@ -137,59 +137,59 @@ export class FakeFsLocal extends FakeFs {
       mtimeSvrFmt: unixTimeToStr(statRes.mtime),
       size: statRes.size, // local always unencrypted
       sizeRaw: statRes.size,
-    };
+    }
   }
 
   async mkdir(key: string, mtime?: number, ctime?: number): Promise<Entity> {
     // console.debug(`mkdir: ${key}`);
-    await mkdirpInVault(key, this.vault);
-    return await this.stat(key);
+    await mkdirpInVault(key, this.vault)
+    return await this.stat(key)
   }
 
   async writeFile(
     key: string,
     content: ArrayBuffer,
     mtime: number,
-    ctime: number
+    ctime: number,
   ): Promise<Entity> {
     await this.vault.adapter.writeBinary(key, content, {
       mtime: mtime,
       ctime: ctime,
-    });
-    return await this.stat(key);
+    })
+    return await this.stat(key)
   }
 
   async readFile(key: string): Promise<ArrayBuffer> {
-    return await this.vault.adapter.readBinary(key);
+    return await this.vault.adapter.readBinary(key)
   }
 
   async rename(key1: string, key2: string): Promise<void> {
-    return await this.vault.adapter.rename(key1, key2);
+    return await this.vault.adapter.rename(key1, key2)
   }
 
   async rm(key: string): Promise<void> {
-    if (this.deleteToWhere === "obsidian") {
-      await this.vault.adapter.trashLocal(key);
+    if (this.deleteToWhere === 'obsidian') {
+      await this.vault.adapter.trashLocal(key)
     } else {
       // "system"
       if (!(await this.vault.adapter.trashSystem(key))) {
-        await this.vault.adapter.trashLocal(key);
+        await this.vault.adapter.trashLocal(key)
       }
     }
   }
   async checkConnect(callbackFunc?: any): Promise<boolean> {
-    return true;
+    return true
   }
 
   async getUserDisplayName(): Promise<string> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.')
   }
 
   async revokeAuth(): Promise<any> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.')
   }
 
   allowEmptyFile(): boolean {
-    return true;
+    return true
   }
 }

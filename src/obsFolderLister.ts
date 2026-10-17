@@ -1,11 +1,11 @@
 // Changed for Remotely Save Lite (2026): no bookmarks-only listing, which the free engine skips
-import type { ListedFiles, Vault } from "obsidian";
-import type { Entity } from "./baseTypes";
+import type { ListedFiles, Vault } from 'obsidian'
+import type { Entity } from './baseTypes'
 
-import { Queue } from "@fyears/tsqueue";
-import chunk from "lodash/chunk";
-import flatten from "lodash/flatten";
-import { isSpecialFolderNameToSkip, statFix } from "./misc";
+import { Queue } from '@fyears/tsqueue'
+import chunk from 'lodash/chunk'
+import flatten from 'lodash/flatten'
+import { isSpecialFolderNameToSkip, statFix } from './misc'
 
 const isPluginDirItself = (x: string, pluginId: string) => {
   return (
@@ -13,52 +13,52 @@ const isPluginDirItself = (x: string, pluginId: string) => {
     x === `${pluginId}/` ||
     x.endsWith(`/${pluginId}`) ||
     x.endsWith(`/${pluginId}/`)
-  );
-};
+  )
+}
 
 const isLikelyPluginSubFiles = (x: string) => {
   const reqFiles = [
-    "data.json",
-    "main.js",
-    "manifest.json",
-    ".gitignore",
-    "styles.css",
-  ];
+    'data.json',
+    'main.js',
+    'manifest.json',
+    '.gitignore',
+    'styles.css',
+  ]
   for (const iterator of reqFiles) {
     if (x === iterator || x.endsWith(`/${iterator}`)) {
-      return true;
+      return true
     }
   }
-  return false;
-};
+  return false
+}
 
 export const listFilesInObsFolder = async (
   configDir: string,
   vault: Vault,
-  pluginId: string
+  pluginId: string,
 ): Promise<Entity[]> => {
-  const q = new Queue([configDir]);
-  const CHUNK_SIZE = 10;
-  const contents: Entity[] = [];
+  const q = new Queue([configDir])
+  const CHUNK_SIZE = 10
+  const contents: Entity[] = []
 
   while (q.length > 0) {
-    const itemsToFetch: string[] = [];
+    const itemsToFetch: string[] = []
     while (q.length > 0) {
-      itemsToFetch.push(q.pop()!);
+      itemsToFetch.push(q.pop()!)
     }
 
-    const itemsToFetchChunks = chunk(itemsToFetch, CHUNK_SIZE);
+    const itemsToFetchChunks = chunk(itemsToFetch, CHUNK_SIZE)
     for (const singleChunk of itemsToFetchChunks) {
       const r = singleChunk.map(async (x) => {
-        const statRes = await statFix(vault, x);
+        const statRes = await statFix(vault, x)
 
         if (statRes === undefined || statRes === null) {
-          throw Error("something goes wrong while listing hidden folder");
+          throw Error('something goes wrong while listing hidden folder')
         }
-        const isFolder = statRes.type === "folder";
-        let children: ListedFiles | undefined = undefined;
+        const isFolder = statRes.type === 'folder'
+        let children: ListedFiles | undefined = undefined
         if (isFolder) {
-          children = await vault.adapter.list(x);
+          children = await vault.adapter.list(x)
         }
 
         if (
@@ -68,8 +68,8 @@ export const listFilesInObsFolder = async (
             statRes.mtime === 0)
         ) {
           throw Error(
-            `File in Obsidian ${configDir} has last modified time 0: ${x}, don't know how to deal with it.`
-          );
+            `File in Obsidian ${configDir} has last modified time 0: ${x}, don't know how to deal with it.`,
+          )
         }
 
         return {
@@ -82,42 +82,42 @@ export const listFilesInObsFolder = async (
             sizeRaw: statRes.size,
           },
           children: children,
-        };
-      });
-      const r2 = flatten(await Promise.all(r));
+        }
+      })
+      const r2 = flatten(await Promise.all(r))
 
       for (const iter of r2) {
-        contents.push(iter.itself);
-        const isInsideSelfPlugin = isPluginDirItself(iter.itself.key, pluginId);
+        contents.push(iter.itself)
+        const isInsideSelfPlugin = isPluginDirItself(iter.itself.key, pluginId)
         if (iter.children !== undefined) {
           for (const iter2 of iter.children.folders) {
             if (
-              isSpecialFolderNameToSkip(iter2, ["workspace", "workspace.json"])
+              isSpecialFolderNameToSkip(iter2, ['workspace', 'workspace.json'])
             ) {
-              continue;
+              continue
             }
             if (isInsideSelfPlugin && !isLikelyPluginSubFiles(iter2)) {
               // special treatment for remotely-save folder
-              continue;
+              continue
             }
-            q.push(iter2);
+            q.push(iter2)
           }
           for (const iter2 of iter.children.files) {
             if (
-              isSpecialFolderNameToSkip(iter2, ["workspace", "workspace.json"])
+              isSpecialFolderNameToSkip(iter2, ['workspace', 'workspace.json'])
             ) {
-              continue;
+              continue
             }
             if (isInsideSelfPlugin && !isLikelyPluginSubFiles(iter2)) {
               // special treatment for remotely-save folder
-              continue;
+              continue
             }
-            q.push(iter2);
+            q.push(iter2)
           }
         }
       }
     }
   }
 
-  return contents;
-};
+  return contents
+}

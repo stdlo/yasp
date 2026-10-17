@@ -1,25 +1,25 @@
 // Changed for Remotely Save Lite (2026): only the Dropbox app key is defined
-require("dotenv").config();
-const path = require("path");
-const webpack = require("webpack");
-const TerserPlugin = require("terser-webpack-plugin");
+require('dotenv').config()
+const path = require('path')
+const webpack = require('webpack')
+const TerserPlugin = require('terser-webpack-plugin')
 
-const DEFAULT_DROPBOX_APP_KEY = process.env.DROPBOX_APP_KEY || "";
+const DEFAULT_DROPBOX_APP_KEY = process.env.DROPBOX_APP_KEY || ''
 
 module.exports = {
-  entry: "./src/main.ts",
-  target: "web",
+  entry: './src/main.ts',
+  target: 'web',
   output: {
-    filename: "main.js",
+    filename: 'main.js',
     path: __dirname,
-    libraryTarget: "commonjs",
+    libraryTarget: 'commonjs',
   },
   plugins: [
     new webpack.DefinePlugin({
-      "global.DEFAULT_DROPBOX_APP_KEY": `"${DEFAULT_DROPBOX_APP_KEY}"`,
+      'global.DEFAULT_DROPBOX_APP_KEY': `"${DEFAULT_DROPBOX_APP_KEY}"`,
 
-      "process.env.NODE_DEBUG": `undefined`, // ugly fix
-      "process.env.DEBUG": `undefined`, // ugly fix
+      'process.env.NODE_DEBUG': `undefined`, // ugly fix
+      'process.env.DEBUG': `undefined`, // ugly fix
       // "process.version": `"v20.10.0"`, // who's using this?
       // "process":`undefined`,
       // "global.process":`undefined`,
@@ -27,29 +27,29 @@ module.exports = {
     // Work around for Buffer is undefined:
     // https://github.com/webpack/changelog-v5/issues/10
     new webpack.ProvidePlugin({
-      Buffer: ["buffer", "Buffer"],
+      Buffer: ['buffer', 'Buffer'],
     }),
     new webpack.ProvidePlugin({
-      process: "process/browser",
+      process: 'process/browser',
     }),
   ],
   module: {
     rules: [
       {
         test: /\.worker\.ts$/,
-        loader: "worker-loader",
+        loader: 'worker-loader',
         options: {
-          inline: "no-fallback",
+          inline: 'no-fallback',
         },
       },
       {
         test: /\.tsx?$/,
-        use: "ts-loader",
+        use: 'ts-loader',
         exclude: /node_modules/,
       },
       {
         test: /\.svg?$/,
-        type: "asset/source",
+        type: 'asset/source',
       },
       {
         test: /\.m?js$/,
@@ -60,14 +60,14 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: [".tsx", ".ts", ".js"],
-    mainFields: ["browser", "module", "main"],
+    extensions: ['.tsx', '.ts', '.js'],
+    mainFields: ['browser', 'module', 'main'],
     fallback: {
       // assert: require.resolve("assert"),
       // buffer: require.resolve("buffer/"),
       // console: require.resolve("console-browserify"),
       // constants: require.resolve("constants-browserify"),
-      crypto: require.resolve("crypto-browserify"),
+      crypto: require.resolve('crypto-browserify'),
       // crypto: false,
       // domain: require.resolve("domain-browser"),
       // events: require.resolve("events"),
@@ -78,17 +78,17 @@ module.exports = {
       // https: require.resolve("https-browserify"),
       net: false,
       // os: require.resolve("os-browserify/browser"),
-      path: require.resolve("path-browserify"),
+      path: require.resolve('path-browserify'),
       // punycode: require.resolve("punycode"),
-      process: require.resolve("process/browser"),
+      process: require.resolve('process/browser'),
       // querystring: require.resolve("querystring-es3"),
-      stream: require.resolve("stream-browserify"),
+      stream: require.resolve('stream-browserify'),
       // string_decoder: require.resolve("string_decoder"),
       // sys: require.resolve("util"),
       // timers: require.resolve("timers-browserify"),
       tls: false,
       // tty: require.resolve("tty-browserify"),
-      url: require.resolve("url/"),
+      url: require.resolve('url/'),
       // util: require.resolve("util"),
       // vm: require.resolve("vm-browserify"),
       vm: false,
@@ -96,10 +96,10 @@ module.exports = {
     },
   },
   externals: {
-    obsidian: "commonjs2 obsidian",
+    obsidian: 'commonjs2 obsidian',
   },
   optimization: {
     minimize: true,
     minimizer: [new TerserPlugin({ extractComments: false })],
   },
-};
+}
