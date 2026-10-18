@@ -124,8 +124,11 @@ reach two remotes, or a route names a remote that doesn't exist, isn't saved.
    for that one repository only, with the repository permission **Contents:
    Read and write** and nothing else. Give it an expiry date.
 3. In "Remotes and routes", choose "Add a GitHub remote", fill in the owner,
-   the repository, the branch, and the token, and optionally a folder inside
-   the repository. Check the connection, add a route for the folders that go
+   the repository, the branch, and optionally a folder inside the repository,
+   and press Save under them; then the token. (Pointing a remote that has
+   synced somewhere else asks first, and forgets its records of the old
+   place, so nothing is deleted for being missing at the new one.) Check the
+   connection, add a route for the folders that go
    there, save the routes, and switch the remote on.
 
 Each sync makes at most one commit (`Sync from <vault>, <n> changes`). The

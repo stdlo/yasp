@@ -11,6 +11,8 @@ import {
   type MultiSyncDeps,
   deleteRemoteFolder,
   forgetFolder,
+  forgetRemote,
+  hasRecords,
   recordFolderRename,
   routeChanges,
   syncAllRemotes,
@@ -779,6 +781,44 @@ describe('Several remotes: the orchestrator', () => {
     const copies = w.local.keys().filter((k) => k.includes('.conflict-remote-'))
     assert.equal(copies.length, 1)
     assert.equal(w.local.text(copies[0]), 'one\ntwo\nthree there\n')
+  })
+
+  it('keeps the local notes when a remote is pointed somewhere else', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+    )
+    // a guard that lets a mass deletion through, as a small vault would
+    w.settings.protectModifyPercentage = 100
+    w.local.put('n.md', 'n')
+    for (const name of ['w1', 'w2', 'w3']) {
+      w.local.put(`work/${name}.md`, name)
+    }
+    await sync(w)
+    const b = w.settings.remotes![1]
+    assert.equal(await hasRecords(w.db, VAULT, b), true)
+    // b points at another place, which holds a note of its own: the settings
+    // page forgets b's records, else the three would read as deleted there
+    w.fs.b = new MemFs()
+    w.fs.b.put('work/other.md', 'o')
+    await forgetRemote(w.db, VAULT, b)
+    assert.equal(await hasRecords(w.db, VAULT, b), false)
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(w.local.keys(), [
+      'n.md',
+      'work/other.md',
+      'work/w1.md',
+      'work/w2.md',
+      'work/w3.md',
+    ])
+    assert.deepEqual(userKeys(w.fs.b), [
+      'work/other.md',
+      'work/w1.md',
+      'work/w2.md',
+      'work/w3.md',
+    ])
   })
 
   it('moves a folder to another remote on a route change', async () => {

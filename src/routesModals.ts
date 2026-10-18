@@ -106,3 +106,43 @@ export const askHeldQuestion = (app: App, q: HeldQuestion) =>
   new Promise<HeldAnswer | undefined>((resolve) => {
     new HeldQuestionModal(app, q, resolve).open()
   })
+
+/** The confirm before a remote that has records points somewhere else. */
+class ChangeLocationModal extends Modal {
+  confirmed = false
+
+  constructor(
+    app: App,
+    readonly remoteName: string,
+    readonly done: (confirmed: boolean) => void,
+  ) {
+    super(app)
+  }
+
+  onOpen() {
+    this.contentEl.createEl('p', {
+      text: `${this.remoteName} has synced before. Pointing it somewhere else makes its records of the old place stale, so they are forgotten: the next sync compares the new place with your vault afresh, and nothing is deleted for being missing there. The old place keeps its copies.`,
+    })
+    new Setting(this.contentEl)
+      .addButton((b) =>
+        b
+          .setButtonText('Change it')
+          .setCta()
+          .onClick(() => {
+            this.confirmed = true
+            this.close()
+          }),
+      )
+      .addButton((b) => b.setButtonText('Cancel').onClick(() => this.close()))
+  }
+
+  onClose() {
+    this.contentEl.empty()
+    this.done(this.confirmed)
+  }
+}
+
+export const askChangeLocation = (app: App, remoteName: string) =>
+  new Promise<boolean>((resolve) => {
+    new ChangeLocationModal(app, remoteName, resolve).open()
+  })

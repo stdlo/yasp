@@ -54,7 +54,10 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   remote's owner, repo, branch, token, folder, and connection check, and the
   table's rows, saved only when the setup isn't refused (the reason shown).
   A route change forgets the old remote's records under the folder and
-  offers to delete its copies there.
+  offers to delete its copies there. A GitHub remote's place (owner, repo,
+  branch, folder) is saved with a Save button, asks first when the remote has
+  synced before, and then forgets its records; Remove clears them too, and a
+  new remote's id is never reused.
 - The status bar marks each remote's last run when there are several
   (`Dropbox ✓ · GitHub ✗`, the error on hover), names the remote syncing,
   and opens the per-remote detail on a click.

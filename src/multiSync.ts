@@ -285,6 +285,35 @@ export const forgetFolder = async (
     isUnder(key.replace(/\/+$/, ''), folder),
   )
 
+/**
+ * Whether a remote has synced before: its profile holds records. A change
+ * of where it points then needs `forgetRemote()` first.
+ */
+export const hasRecords = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  remote: RemoteConfig,
+) =>
+  (
+    await getAllPrevSyncRecordsByVaultAndProfile(
+      db,
+      vaultRandomID,
+      profileIdOf(remote),
+    )
+  ).length > 0
+
+/**
+ * Forgets everything a remote's profile knows (records and sync bases), for
+ * when the remote is removed or points somewhere else: records of the old
+ * place would read as deletions at the new one.
+ */
+export const forgetRemote = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  remote: RemoteConfig,
+) =>
+  await clearProfileRecords(db, vaultRandomID, profileIdOf(remote), () => true)
+
 /** Deletes a folder's copies on a remote, after a route change. */
 export const deleteRemoteFolder = async (fs: FakeFs, folder: string) => {
   const keys = (await fs.walk())

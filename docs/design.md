@@ -198,3 +198,8 @@ syncing one folder to two remotes on purpose (a backup); each could come later a
 11. **The Dropbox credentials have one home.** A Dropbox remote holds none of its own: its run reads the top-level
     `dropbox`, which the OAuth flow, Revoke, Clear local, and the expiry write, so none of them can leave a second
     copy behind. A copy an earlier build saved on the remote is deleted when the settings load.
+12. **Pointing a GitHub remote somewhere else forgets its records.** The settings page saves the owner, repo, branch,
+    and folder with an explicit Save, not per keystroke; when the remote has synced before it asks first, then clears
+    the profile's records and sync bases (`forgetRemote()`), since the old place's records would read as deletions at
+    the new one. Removing a remote clears its profile the same way, and a new remote's id is `github-<random>`,
+    never reused.

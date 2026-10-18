@@ -5,11 +5,18 @@
  * and isn't saved.
  */
 import cloneDeep from 'lodash/cloneDeep'
+import { nanoid } from 'nanoid'
 import { type App, Notice, Setting } from 'obsidian'
 import type { RemoteConfig, RemotelySavePluginSettings } from './baseTypes'
 import { getClient } from './fsGetter'
 import type RemotelySavePlugin from './main' // unavoidable
-import { deleteRemoteFolder, forgetFolder, routeChanges } from './multiSync'
+import {
+  deleteRemoteFolder,
+  forgetFolder,
+  forgetRemote,
+  hasRecords,
+  routeChanges,
+} from './multiSync'
 import { refusedSettings, settingsForRemote } from './remotes'
 import {
   LOCAL_ONLY,
@@ -17,7 +24,7 @@ import {
   describeTarget,
   normalizeFolder,
 } from './routes'
-import { askDeleteOldCopies } from './routesModals'
+import { askChangeLocation, askDeleteOldCopies } from './routesModals'
 import { wrapTextWithPasswordHide } from './settings'
 
 const remoteFs = (plugin: RemotelySavePlugin, remote: RemoteConfig) =>
@@ -30,17 +37,13 @@ const remoteFs = (plugin: RemotelySavePlugin, remote: RemoteConfig) =>
 
 const newGithubRemote = (remotes: RemoteConfig[]): RemoteConfig => {
   let n = 1
-  while (
-    remotes.some(
-      (r) =>
-        r.id === `github-${n}` ||
-        r.name === (n === 1 ? 'GitHub' : `GitHub ${n}`),
-    )
-  ) {
+  while (remotes.some((r) => r.name === (n === 1 ? 'GitHub' : `GitHub ${n}`))) {
     n += 1
   }
   return {
-    id: `github-${n}`,
+    // never reused: a removed remote's id may still be on another device's
+    // remote or in a records key, and would hand its records to the new one
+    id: `github-${nanoid()}`,
     name: n === 1 ? 'GitHub' : `GitHub ${n}`,
     type: 'github',
     // off until its settings are filled in
@@ -140,10 +143,12 @@ export const renderRemotesSettings = (
           }
           settings.remotes = remotes.filter((r) => r !== remote)
           await plugin.saveSettings()
+          // its records and sync bases go with it
+          await forgetRemote(plugin.db, plugin.vaultRandomID, remote)
           refresh()
         }),
       )
-      renderGithubSettings(div, plugin, remote)
+      renderGithubSettings(div, app, plugin, remote)
     }
   }
   new Setting(div).addButton((b) =>
@@ -229,10 +234,14 @@ export const renderRemotesSettings = (
 
 const renderGithubSettings = (
   div: HTMLElement,
+  app: App,
   plugin: RemotelySavePlugin,
   remote: RemoteConfig,
 ) => {
   const gh = remote.github!
+  // where the remote points is a draft until "Save", since a half-typed
+  // name would be a different place; the saved place is what syncs
+  const draft = { ...gh }
   const text = (
     name: string,
     desc: string,
@@ -242,9 +251,8 @@ const renderGithubSettings = (
       .setName(`${remote.name}: ${name}`)
       .setDesc(desc)
       .addText((t) =>
-        t.setValue(gh[key] ?? '').onChange(async (val) => {
-          gh[key] = val.trim()
-          await plugin.saveSettings()
+        t.setValue(draft[key] ?? '').onChange((val) => {
+          draft[key] = val.trim()
         }),
       )
   text('owner', 'The account or organization the repo belongs to.', 'owner')
@@ -255,6 +263,39 @@ const renderGithubSettings = (
     'Optional: a folder in the repo to keep the vault under.',
     'folder',
   )
+  new Setting(div)
+    .setName(`${remote.name}: save the place`)
+    .setDesc(
+      'Saves the owner, repo, branch, and folder. If this remote has synced before, you are asked first: its old records are forgotten.',
+    )
+    .addButton((b) =>
+      b
+        .setButtonText('Save')
+        .setCta()
+        .onClick(async () => {
+          if (plugin.isSyncing) {
+            new Notice('A sync is running: save once it finishes.')
+            return
+          }
+          const keys = ['owner', 'repo', 'branch', 'folder'] as const
+          if (keys.every((k) => (draft[k] ?? '') === (gh[k] ?? ''))) {
+            new Notice(`${remote.name}: nothing changed.`)
+            return
+          }
+          if (
+            (await hasRecords(plugin.db, plugin.vaultRandomID, remote)) &&
+            !(await askChangeLocation(app, remote.name))
+          ) {
+            return
+          }
+          for (const k of keys) {
+            gh[k] = draft[k] ?? ''
+          }
+          await plugin.saveSettings()
+          await forgetRemote(plugin.db, plugin.vaultRandomID, remote)
+          new Notice(`${remote.name}: saved.`)
+        }),
+    )
   new Setting(div)
     .setName(`${remote.name}: token`)
     .setDesc(

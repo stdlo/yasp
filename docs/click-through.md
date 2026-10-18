@@ -27,12 +27,13 @@ number.
 ## 2. Add GitHub
 
 - [ ] 2.1 "Remotes and routes", "Add a GitHub remote". It appears switched off. Fill in the owner, the repo, `main`,
-  and the token. "Check connection" says it connected. [The ref read: `GET /repos/{owner}/{repo}/git/ref/heads/main`
+  and press "Save" under them, then enter the token. "Check connection" says it connected. [The ref read: `GET /repos/{owner}/{repo}/git/ref/heads/main`
   gives `object.sha`.]
 - [ ] 2.2 Put a wrong character in the token and check again: it fails. Sync with the remote on and the bad token: the
   notice says the token was refused (401), Dropbox's run still finishes, and the status bar shows `GitHub ✗`. Put
   the right token back.
-- [ ] 2.3 Set the repo to one that doesn't exist: the notice says there's no access (404). Set it back.
+- [ ] 2.3 Set the repo to one that doesn't exist and press "Save" (the place is saved only then, not as you type):
+  the notice says there's no access (404) on the next check. Set it back and save.
 - [ ] 2.4 Search the console output and the exported sync plan for the token's first few characters: they appear
   nowhere.
 
@@ -72,6 +73,10 @@ number.
 - [ ] 4.5 Change the route `work → GitHub` to `work → Dropbox`, save. It offers to delete GitHub's copies; choose
   "Keep them". Sync: `work` reaches Dropbox, GitHub keeps its old copies untouched. Route it back to GitHub and
   answer "Delete from GitHub" this time; Dropbox's copies stay, stale, until you delete them yourself.
+
+- [ ] 4.6 After GitHub has synced, change its folder (or repo or branch) and press "Save": it asks first, then
+  forgets the old records. Sync: nothing in the vault is deleted, and the new place gets the routed notes. "Remove"
+  on a remote, then "Add a GitHub remote" again: the new one starts with no records.
 
 ## 5. Two devices
 
