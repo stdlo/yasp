@@ -32,6 +32,8 @@ class MockRepo {
   trees = new Map<string, Map<string, string>>() // sha → path → blob sha
   commits = new Map<string, Commit>()
   head = ''
+  /** the branch's ref path tail, as the URL spells it */
+  branchPath = 'main'
   n = 0
   requests: GithubRequest[] = []
   /** a status to answer the next request matching, once */
@@ -97,7 +99,7 @@ class MockRepo {
     const path = url.pathname.replace(/^\/repos\/me\/notes/, '')
     const body = req.body === undefined ? undefined : JSON.parse(req.body)
     let m: RegExpMatchArray | null
-    if (req.method === 'GET' && path === '/git/ref/heads/main') {
+    if (req.method === 'GET' && path === `/git/ref/heads/${this.branchPath}`) {
       return ok({ object: { sha: this.head } })
     }
     if (req.method === 'GET' && (m = path.match(/^\/git\/commits\/(.+)$/))) {
@@ -142,7 +144,10 @@ class MockRepo {
         201,
       )
     }
-    if (req.method === 'PATCH' && path === '/git/refs/heads/main') {
+    if (
+      req.method === 'PATCH' &&
+      path === `/git/refs/heads/${this.branchPath}`
+    ) {
       this.beforePatch?.()
       this.beforePatch = undefined
       if (this.commits.get(body.sha)!.parents[0] !== this.head) {
@@ -181,9 +186,14 @@ class MockRepo {
   }
 }
 
-const fsFor = (repo: MockRepo, notices: string[] = [], token = TOKEN) =>
+const fsFor = (
+  repo: MockRepo,
+  notices: string[] = [],
+  token = TOKEN,
+  branch = 'main',
+) =>
   new FakeFsGithub(
-    { owner: 'me', repo: 'notes', branch: 'main', token },
+    { owner: 'me', repo: 'notes', branch, token },
     'laptop',
     repo.request,
     (msg) => notices.push(msg),
@@ -224,6 +234,17 @@ describe('GitHub remote', () => {
     assert.equal(byKey['work/sub/b.md'].size, 2)
     // ref, commit, tree, and the times blob
     assert.equal(repo.requests.length, 4)
+  })
+
+  it('keeps the slash of a branch named feature/x in the ref paths', async () => {
+    const repo = new MockRepo({ 'work/old.md': 'old' })
+    // each segment encoded alone: the slash stays, a space doesn't
+    repo.branchPath = 'feature/x%20y'
+    const fs = fsFor(repo, [], TOKEN, 'feature/x y')
+    await fs.walk()
+    await fs.writeFile('work/a.md', buf('A'), 5_000, 5_000)
+    await fs.finishSync()
+    assert.equal(repo.files()['work/a.md'], 'A')
   })
 
   it('commits a run in one commit, times file included', async () => {

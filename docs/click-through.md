@@ -96,6 +96,10 @@ Use a second scratch vault (or a second device) with the same two remotes.
 
 ## 6. GitHub edge cases
 
+- [ ] 6.0 Create a branch named `feature/x` in the scratch repository, point the GitHub remote's branch at it, press
+  "Save", and sync: "Check connection" connects and the sync commits to `feature/x`. [A branch with a slash: the ref
+  paths `git/ref/heads/feature/x` and `PATCH git/refs/heads/feature/x` take the slash as it is, each segment encoded.]
+
 - [ ] 6.1 Edit `work/c.md` on github.com, sync: the edit arrives, and a notice says a file changed outside the plugin
   takes the time of its last commit. [`GET commits?path=work/c.md&per_page=1` gives `commit.committer.date`.] Sync once
   more: GitHub gains a "Record file times" commit (or the sync's own commit holds them), and the next sync makes no

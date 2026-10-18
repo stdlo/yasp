@@ -172,11 +172,21 @@ export class FakeFsGithub extends FakeFs {
     )
   }
 
+  /**
+   * The branch as the tail of a ref path: one segment at a time, so a branch
+   * named `feature/x` keeps its slash (a ref path takes `heads/feature/x`;
+   * an encoded `%2F` there isn't known to match, and the docs are not
+   * fetched).
+   */
+  private branchPath() {
+    return this.config.branch.split('/').map(encodeURIComponent).join('/')
+  }
+
   /** docs.github.com/en/rest/git/refs (not fetched): `object.sha` */
   private async getHead() {
     const ref = await this.call<GithubRef>(
       'GET',
-      `/git/ref/heads/${encodeURIComponent(this.config.branch)}`,
+      `/git/ref/heads/${this.branchPath()}`,
     )
     return ref.object.sha
   }
@@ -507,11 +517,10 @@ export class FakeFsGithub extends FakeFs {
       parents: [head],
     })
     try {
-      await this.call(
-        'PATCH',
-        `/git/refs/heads/${encodeURIComponent(this.config.branch)}`,
-        { sha: commit.sha, force: false },
-      )
+      await this.call('PATCH', `/git/refs/heads/${this.branchPath()}`, {
+        sha: commit.sha,
+        force: false,
+      })
       return true
     } catch (e) {
       if (e instanceof GithubError && e.status === 422) {
