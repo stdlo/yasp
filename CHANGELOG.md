@@ -38,7 +38,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   with a notice and a contradiction stopping the runs; and a routed folder
   gone while the plugin wasn't watching holds its runs and asks once. A
   rename the remote already made before the plugin stopped goes on to the
-  records instead of failing that remote at every sync. A dry run writes
+  records instead of failing that remote at every sync. A rename stays
+  pending until every remote in the list has it (a switched-off remote gets it
+  when it's on again), and one recorded while a sync runs isn't lost. A dry run writes
   nothing: no renames, no routes files, no adopted table, and no question.
   After
   a run, the records of anything a batching remote didn't commit go back to

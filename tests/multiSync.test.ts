@@ -47,6 +47,8 @@ class MemFs extends FakeFs {
   removes = 0
   renames: string[] = []
   failWalk = false
+  /** runs as a rename starts, before anything moves */
+  onRename?: () => Promise<void>
   /** folders kept with nothing in them, as a vault keeps them */
   emptyFolders = new Set<string>()
 
@@ -135,6 +137,7 @@ class MemFs extends FakeFs {
   }
 
   async rename(key1: string, key2: string): Promise<void> {
+    await this.onRename?.()
     this.renames.push(`${key1}=>${key2}`)
     for (const [key, file] of [...this.files]) {
       if (key.startsWith(key1)) {
@@ -552,6 +555,63 @@ describe('Several remotes: the orchestrator', () => {
     // the routes file is the only write
     assert.equal(w.fs.b.writes, 1)
     assert.deepEqual(userKeys(w.fs.a), ['n.md'])
+    assert.deepEqual(w.settings.pendingRenames, [])
+  })
+
+  it('keeps a rename pending for a remote that is switched off', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b'), remote('c', { enabled: false })],
+        [{ folder: 'work', target: 'b' }],
+      ),
+      { a: new MemFs(), b: new MemFs(), c: new MemFs() },
+    )
+    w.local.put('work/w1.md', '1')
+    w.local.put('work/w2.md', '2')
+    await sync(w)
+    for (const key of ['work/w1.md', 'work/w2.md']) {
+      w.local.files.set(key.replace('work/', 'job/'), w.local.files.get(key)!)
+      w.local.files.delete(key)
+    }
+    recordFolderRename(w.settings, 'work', 'job', 2)
+    await sync(w)
+    assert.deepEqual(w.settings.pendingRenames, [
+      { from: 'work', to: 'job', done: ['a', 'b'] },
+    ])
+    // switched on, it gets the rename too, and the rename is finished
+    w.settings.remotes![2].enabled = true
+    await sync(w)
+    assert.deepEqual(w.settings.pendingRenames, [])
+  })
+
+  it('keeps a rename recorded while a sync runs', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [
+          { folder: 'work', target: 'b' },
+          { folder: 'docs', target: 'b' },
+        ],
+      ),
+    )
+    w.local.put('work/w.md', 'w')
+    w.local.put('docs/d.md', 'd')
+    await sync(w)
+    w.local.files.set('job/w.md', w.local.files.get('work/w.md')!)
+    w.local.files.delete('work/w.md')
+    recordFolderRename(w.settings, 'work', 'job', 2)
+    // the vault's `docs` is renamed while b's folder is being moved
+    w.fs.b.onRename = async () => {
+      w.fs.b.onRename = undefined
+      w.local.files.set('notes/d.md', w.local.files.get('docs/d.md')!)
+      w.local.files.delete('docs/d.md')
+      recordFolderRename(w.settings, 'docs', 'notes', 3)
+    }
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    // not lost: b's folder moved too, and nothing was deleted
+    assert.deepEqual(w.fs.b.renames, ['work/=>job/', 'docs/=>notes/'])
+    assert.deepEqual(userKeys(w.fs.b), ['job/w.md', 'notes/d.md'])
+    assert.deepEqual(w.local.keys(), ['job/w.md', 'notes/d.md'])
     assert.deepEqual(w.settings.pendingRenames, [])
   })
 

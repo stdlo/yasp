@@ -168,7 +168,8 @@ const isRenamedOn = async (fs: FakeFs, from: string, to: string) => {
  * Applies the routed-folder renames recorded since the last sync: per
  * remote, the folder renamed on the remote, then that profile's records.
  * A remote whose rename fails keeps it pending and doesn't run, since its
- * records and its folder would disagree.
+ * records and its folder would disagree; so does one that's switched off,
+ * which gets it when it's on again.
  */
 const applyPendingRenames = async (
   settings: RemotelySavePluginSettings,
@@ -220,9 +221,12 @@ const applyPendingRenames = async (
       rename.done.push(run.remote.id)
     }
   }
-  const enabled = runs.map((r) => r.remote.id)
-  settings.pendingRenames = pending.filter(
-    (p) => !enabled.every((id) => p.done.includes(id)),
+  // a rename is finished once every remote in the list has it, one that is
+  // switched off or failed included; the live list, since a folder renamed
+  // during the awaits above is in it and not in `pending`
+  const all = (settings.remotes ?? []).map((r) => r.id)
+  settings.pendingRenames = (settings.pendingRenames ?? []).filter(
+    (p) => !all.every((id) => p.done.includes(id)),
   )
   await deps.saveSettings()
 }
