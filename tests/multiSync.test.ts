@@ -635,6 +635,52 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(w.settings.pendingRenames, [])
   })
 
+  it('keeps a rename pending, and the records, when the remote move fails', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('work/w1.md', '1')
+    w.local.put('work/w2.md', '2')
+    await sync(w)
+    const recordKeys = async () =>
+      (
+        await getAllPrevSyncRecordsByVaultAndProfile(
+          w.db,
+          VAULT,
+          profileIdOf(w.settings.remotes![1]),
+        )
+      )
+        .map((r) => r.key)
+        .sort()
+    const before = await recordKeys()
+    for (const key of ['work/w1.md', 'work/w2.md']) {
+      w.local.files.set(key.replace('work/', 'job/'), w.local.files.get(key)!)
+      w.local.files.delete(key)
+    }
+    recordFolderRename(w.settings, 'work', 'job', 2)
+    w.fs.b.onRename = async () => {
+      w.fs.b.onRename = undefined
+      throw Error('the destination exists')
+    }
+    const res = await sync(w)
+    assert.equal(res.a, 'ok')
+    assert.match(res.b, /^failed: rename work: the destination exists/)
+    // still pending for b, its records where they were, its folder unmoved
+    assert.deepEqual(w.settings.pendingRenames, [
+      { from: 'work', to: 'job', done: ['a'] },
+    ])
+    assert.deepEqual(await recordKeys(), before)
+    assert.deepEqual(userKeys(w.fs.b), ['work/w1.md', 'work/w2.md'])
+    // the next sync finishes it
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(userKeys(w.fs.b), ['job/w1.md', 'job/w2.md'])
+    assert.deepEqual(w.settings.pendingRenames, [])
+  })
+
   it('keeps a rename recorded while a sync runs', async () => {
     const w = world(
       settingsWith(

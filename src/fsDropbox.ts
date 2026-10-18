@@ -706,6 +706,11 @@ export class FakeFsDropbox extends FakeFs {
     } catch (err) {
       console.error('some error while moving')
       console.error(err)
+      // a caller must see a failed move: `applyPendingRenames` keeps a folder
+      // rename pending on a throw. Which reply Dropbox gives for a destination
+      // that already exists is not fetched; any failure is rethrown, so none
+      // is relied on.
+      throw err
     }
   }
 
