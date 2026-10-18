@@ -216,5 +216,6 @@ syncing one folder to two remotes on purpose (a backup); each could come later a
 12. **Pointing a GitHub remote somewhere else forgets its records.** The settings page saves the owner, repo, branch,
     and folder with an explicit Save, not per keystroke; when the remote has synced before it asks first, then clears
     the profile's records and sync bases (`forgetRemote()`), since the old place's records would read as deletions at
-    the new one. Removing a remote clears its profile the same way, and a new remote's id is `github-<random>`,
-    never reused.
+    the new one. Save refuses while a sync runs, checks again after the question (a scheduled sync can start while
+    it's open), and forgets the records before it saves the settings. Removing a remote clears its profile the same
+    way and is refused while a sync runs, and a new remote's id is `github-<random>`, never reused.

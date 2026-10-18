@@ -174,6 +174,10 @@ export const renderRemotesSettings = (
     if (remote.type === 'github') {
       s.addButton((b) =>
         b.setButtonText('Remove').onClick(async () => {
+          if (plugin.isSyncing) {
+            new Notice('A sync is running: remove it once it finishes.')
+            return
+          }
           const owned = table.routes.filter((r) => r.target === remote.id)
           if (owned.length > 0 || table.defaultTarget === remote.id) {
             new Notice(
@@ -328,11 +332,18 @@ const renderGithubSettings = (
           ) {
             return
           }
+          // a scheduled sync may have started while the question was open
+          if (plugin.isSyncing) {
+            new Notice('A sync is running: save once it finishes.')
+            return
+          }
+          // the records go first: a sync starting between the two awaits
+          // would otherwise run at the new place with the old records
+          await forgetRemote(plugin.db, plugin.vaultRandomID, remote)
           for (const k of keys) {
             gh[k] = draft[k] ?? ''
           }
           await plugin.saveSettings()
-          await forgetRemote(plugin.db, plugin.vaultRandomID, remote)
           new Notice(`${remote.name}: saved.`)
         }),
     )

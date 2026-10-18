@@ -66,8 +66,8 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   offers to delete its copies there; so does a change of the default row,
   for everything no route names. A GitHub remote's place (owner, repo,
   branch, folder) is saved with a Save button, asks first when the remote has
-  synced before, and then forgets its records; Remove clears them too, and a
-  new remote's id is never reused.
+  synced before, and then forgets its records (both refuse while a sync
+  runs); Remove clears them too, and a new remote's id is never reused.
 - The status bar marks each remote's last run when there are several
   (`Dropbox ✓ · GitHub ✗`, the error on hover), names the remote syncing,
   and opens the per-remote detail on a click. A refused setup, a stopped
