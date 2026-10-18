@@ -204,6 +204,16 @@ class FailingCommitFs extends MemFs {
   }
 }
 
+/** A remote whose commit can be made to fail, with nothing staged. */
+class FlakyCommitFs extends MemFs {
+  failCommit = false
+  async finishSync() {
+    if (this.failCommit) {
+      throw Error('commit failed')
+    }
+  }
+}
+
 /** A remote that stages its writes and drops some keys from the commit. */
 class DroppingFs extends MemFs {
   drop = new Set<string>()
@@ -753,6 +763,34 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
     assert.deepEqual(userKeys(working), ['work/w.md'])
     assert.deepEqual(w.local.keys(), ['work/w.md'])
+  })
+
+  it("reports the plan's error when the commit fails too", async () => {
+    const flaky = new FlakyCommitFs()
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+      { a: new MemFs(), b: flaky },
+    )
+    for (const name of ['w1', 'w2', 'w3', 'w4']) {
+      w.local.put(`work/${name}.md`, name)
+    }
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    // every note deleted at once: the guard stops the plan, then the commit
+    // fails as well
+    for (const name of ['w1', 'w2', 'w3', 'w4']) {
+      w.local.files.delete(`work/${name}.md`)
+    }
+    w.local.emptyFolders.add('work/')
+    flaky.failCommit = true
+    const res = await sync(w)
+    assert.match(res.b, /too many changes/)
+    assert.match(res.b, /commit failed/)
+    // and a commit that fails after a clean plan still says so
+    w.settings.protectModifyPercentage = 100
+    assert.match((await sync(w)).b, /commit failed/)
   })
 
   it('keeps both versions after a rolled-back commit and a remote edit', async () => {

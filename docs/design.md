@@ -130,7 +130,8 @@ never logged.
   Contents API race (409), so `writeFile` creates a blob and stages it, `rm` stages a deletion, and at the end of the
   run an optional engine hook, `FakeFs.finishSync()`, makes one tree, one commit ("Sync from <vault>, <n>
   changes"), and moves the branch (`force: false`). The engine calls it after the plan even when the plan stopped
-  partway, so what did run is committed. Git keeps no empty folders: `mkdir` and a folder's `rm` do nothing.
+  partway, so what did run is committed; a commit that fails then never hides the plan's own error (the commit's
+  message is appended to it), and the run's result always says how many changes weren't committed. Git keeps no empty folders: `mkdir` and a folder's `rm` do nothing.
 - **A moved branch** (another device committed first, the ref update refused): the tree is rebuilt on the new head;
   only paths that changed there are dropped from this commit, and only those roll back (below). Three tries, then
   the run fails and everything rolls back.

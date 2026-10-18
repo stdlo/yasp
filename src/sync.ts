@@ -1752,6 +1752,8 @@ export async function syncer(
       await notifyFunc?.(triggerSource, step)
       await ribboonFunc?.(triggerSource, step)
       await statusBarFunc?.(triggerSource, step, everythingOk)
+      let planFailed = false
+      let planError: unknown = undefined
       try {
         await doActualSync(
           mixedEntityMappings,
@@ -1767,10 +1769,33 @@ export async function syncer(
           callbackSyncProcess,
           callbackConflictCopy,
         )
-      } finally {
-        // a remote that batches its writes (GitHub) commits what was done,
-        // even when the run stopped partway
+      } catch (e) {
+        planFailed = true
+        planError = e
+      }
+      // a remote that batches its writes (GitHub) commits what was done,
+      // even when the run stopped partway; its own failure never hides the
+      // plan's
+      let commitFailed = false
+      let commitError: unknown = undefined
+      try {
         await fsRemote.finishSync?.()
+      } catch (e) {
+        commitFailed = true
+        commitError = e
+      }
+      if (planFailed) {
+        if (commitFailed && planError instanceof Error) {
+          const commitMessage =
+            commitError instanceof Error
+              ? commitError.message
+              : `${commitError}`
+          planError.message = `${planError.message} (the commit also failed: ${commitMessage})`
+        }
+        throw planError
+      }
+      if (commitFailed) {
+        throw commitError
       }
       profiler?.insert(`finish step${step} (actual sync)`)
     } else {
