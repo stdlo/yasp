@@ -40,7 +40,7 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   nothing: no renames, no routes files, no adopted table, and no question.
   After
   a run, the records of anything a batching remote didn't commit go back to
-  what they were.
+  what they were, and their Smart Conflict bases are cleared.
 - A GitHub remote (`src/fsGithub.ts`) over GitHub's REST API through
   Obsidian's `requestUrl`: one listing of the branch head's tree, every
   write in a run staged as a blob and committed once at its end, a moved

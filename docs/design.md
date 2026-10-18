@@ -137,7 +137,9 @@ never logged.
 - **Rolling back:** the engine writes a previous-sync record as soon as `writeFile` returns and clears it after `rm`,
   before the commit. So the GitHub fs reports the keys it couldn't commit (all of them when the commit fails), and the
   orchestrator puts their records under that profile back to what they were before the run: the next run sees them
-  as local changes (re-upload) or unchanged deletions (re-delete), never as "deleted on the remote".
+  as local changes (re-upload) or unchanged deletions (re-delete), never as "deleted on the remote". Their Smart
+  Conflict merge bases are cleared too, since the base the run stored is of a copy the remote never got: a later
+  conflict on one of them makes a conflict copy rather than merging from it.
 - **Times:** git keeps no file times, and the engine compares them. The remote keeps
   `.remotely-save-lite/times.json` (path → modified time, size, blob sha) in each commit, merged by path with the
   head's copy on a moved branch (never counted as an overlap). A file whose blob sha doesn't match it (edited on

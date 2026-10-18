@@ -16,6 +16,7 @@ import {
   type InternalDBs,
   clearPrevSyncRecordByVaultAndProfile,
   clearProfileRecords,
+  clearSyncBaseByVaultAndProfile,
   getAllPrevSyncRecordsByVaultAndProfile,
   moveProfileRecords,
   upsertPrevSyncRecordByVaultAndProfile,
@@ -444,7 +445,8 @@ const applyHoldRule = async (
 /**
  * Restores the records of the keys a staging remote didn't commit to what
  * they were before the run, so the next run sees an upload as still to do
- * and a deletion as still to make, never as a change on the remote.
+ * and a deletion as still to make, never as a change on the remote. Their
+ * sync bases go too.
  */
 const rollBack = async (
   run: Run,
@@ -456,6 +458,14 @@ const rollBack = async (
   }
   const keys = run.fs.uncommittedKeys()
   for (const key of keys) {
+    // the base the run stored is of a copy that never reached the remote: a
+    // later conflict makes a copy rather than merging from it
+    await clearSyncBaseByVaultAndProfile(
+      deps.db,
+      deps.vaultRandomID,
+      run.profileID,
+      key,
+    )
     const prev = before.get(key)
     if (prev === undefined) {
       await clearPrevSyncRecordByVaultAndProfile(

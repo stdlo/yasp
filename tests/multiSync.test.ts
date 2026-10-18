@@ -202,6 +202,35 @@ class FailingCommitFs extends MemFs {
   }
 }
 
+/** A remote that stages its writes and drops some keys from the commit. */
+class DroppingFs extends MemFs {
+  drop = new Set<string>()
+  dropped: string[] = []
+  private before = new Map<string, { content: ArrayBuffer; mtime: number }>()
+  async writeFile(key: string, content: ArrayBuffer, mtime: number) {
+    const file = this.files.get(key)
+    if (file !== undefined && !this.before.has(key)) {
+      this.before.set(key, file)
+    }
+    return await super.writeFile(key, content, mtime)
+  }
+  async finishSync() {
+    this.dropped = [...this.drop]
+    for (const key of this.dropped) {
+      const prev = this.before.get(key)
+      if (prev === undefined) {
+        this.files.delete(key)
+      } else {
+        this.files.set(key, prev)
+      }
+    }
+    this.before.clear()
+  }
+  uncommittedKeys() {
+    return this.dropped
+  }
+}
+
 /** The encryption layer with no password: each call goes to the remote. */
 const plainEncrypt = (inner: FakeFs) =>
   ({
@@ -722,6 +751,34 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
     assert.deepEqual(userKeys(working), ['work/w.md'])
     assert.deepEqual(w.local.keys(), ['work/w.md'])
+  })
+
+  it('keeps both versions after a rolled-back commit and a remote edit', async () => {
+    const dropping = new DroppingFs()
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+      { a: new MemFs(), b: dropping },
+    )
+    w.settings.conflictAction = 'smart'
+    // one file on the remote: let a change to it go past the guard
+    w.settings.protectModifyPercentage = 100
+    w.local.put('work/n.md', 'one\ntwo\nthree\n')
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    // an edit the commit drops: the remote still holds the old text
+    w.local.put('work/n.md', 'one\ntwo here\nthree\n', 2_000_000)
+    dropping.drop.add('work/n.md')
+    assert.match((await sync(w)).b, /^failed: 1 changes/)
+    // then the remote's copy changes, from another device
+    dropping.drop.clear()
+    dropping.put('work/n.md', 'one\ntwo\nthree there\n', 3_000_000)
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.equal(w.local.text('work/n.md'), 'one\ntwo here\nthree\n')
+    const copies = w.local.keys().filter((k) => k.includes('.conflict-remote-'))
+    assert.equal(copies.length, 1)
+    assert.equal(w.local.text(copies[0]), 'one\ntwo\nthree there\n')
   })
 
   it('moves a folder to another remote on a route change', async () => {
