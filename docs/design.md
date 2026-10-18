@@ -125,7 +125,9 @@ fine-grained personal access token limited to that one repo with contents read a
 inside the repo. Vault paths are kept whole in the repo. The token goes in the `Authorization` header only and is
 never logged.
 - **Listing:** one call for the branch head, one for its commit, one for its tree (`git/trees/<sha>?recursive=1`),
-  and the times file's blob. A truncated tree stops the run.
+  and the times file's blob. A truncated tree stops the run. The loaded tree is reused while the branch head is the
+  same (one sync lists for the routes file, the password check, and the engine's walk, which then cost one ref
+  call each), and the partial listing for the password check looks up no times.
 - **Writing, batched:** the engine uploads five files at once, and parallel writes to one branch through the
   Contents API race (409), so `writeFile` creates a blob and stages it, `rm` stages a deletion, and at the end of the
   run an optional engine hook, `FakeFs.finishSync()`, makes one tree, one commit ("Sync from <vault>, <n>
@@ -145,6 +147,8 @@ never logged.
   `.remotely-save-lite/times.json` (path → modified time, size, blob sha) in each commit, merged by path with the
   head's copy on a moved branch (never counted as an overlap). A file whose blob sha doesn't match it (edited on
   github.com) gets the time of the last commit touching that path (one request each, rare), and a notice says so.
+  Those times are written to the times file by the run's commit, or by a commit of their own ("Record file times
+  from <device>") when nothing else is staged, so the lookup is made once per file, not at every sync.
 - **Limits:** 5,000 requests an hour, about one per changed file plus a few per run; a 403 or 429 with no requests
   remaining is reported as the limit. Files over 100 MB are skipped with a notice (that file's upload fails).
 - **Encryption** isn't allowed on a GitHub remote yet: the rollback finds records by vault path, and an encrypted

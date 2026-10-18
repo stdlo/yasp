@@ -77,6 +77,8 @@ export class FakeFsGithub extends FakeFs {
   private times: Record<string, TimeEntry> = {}
   private staged = new Map<string, Staged>()
   private uncommitted: string[] = []
+  /** a walk gave files a fallback time that the times file doesn't hold yet */
+  private timesDirty = false
 
   constructor(
     readonly config: GithubConfig,
@@ -198,8 +200,16 @@ export class FakeFsGithub extends FakeFs {
     }
   }
 
+  /**
+   * Reads the branch head's tree and times file, unless the tree already
+   * loaded is of the head the branch still has: one sync lists the repo for
+   * the routes file, the password check, and the engine's walk.
+   */
   private async load() {
     const head = await this.getHead()
+    if (head === this.headSha) {
+      return
+    }
     const { treeSha, blobs, folders } = await this.readTree(head)
     this.headSha = head
     this.treeSha = treeSha
@@ -223,7 +233,13 @@ export class FakeFsGithub extends FakeFs {
     return date === undefined ? Date.now() : Date.parse(date)
   }
 
-  async walk(): Promise<Entity[]> {
+  /**
+   * The listing. A file the times file doesn't know takes the time of its
+   * last commit (a request each) when `withFallbacks`; the times it gets are
+   * kept, and the next commit writes them to the times file, so the lookup
+   * is made once. A partial listing (keys only) makes no lookups.
+   */
+  private async list(withFallbacks: boolean): Promise<Entity[]> {
     await this.load()
     const res: Entity[] = []
     for (const folder of this.folders) {
@@ -237,8 +253,8 @@ export class FakeFsGithub extends FakeFs {
       if (path.startsWith(OWN_FOLDER)) {
         continue
       }
-      let time = this.times[path]
-      if (time === undefined || time.sha !== blob.sha) {
+      let time: TimeEntry | undefined = this.times[path]
+      if (withFallbacks && (time === undefined || time.sha !== blob.sha)) {
         time = {
           mtime: await this.lastCommitTime(path),
           size: blob.size,
@@ -250,13 +266,14 @@ export class FakeFsGithub extends FakeFs {
       res.push({
         key: path,
         keyRaw: path,
-        mtimeCli: time.mtime,
-        mtimeSvr: time.mtime,
+        mtimeCli: time?.mtime,
+        mtimeSvr: time?.mtime,
         size: blob.size,
         sizeRaw: blob.size,
       })
     }
     if (fallbacks.length > 0) {
+      this.timesDirty = true
       this.notice?.(
         `GitHub: ${fallbacks.length} files changed outside this plugin (on github.com, say) take the time of their last commit.`,
       )
@@ -264,8 +281,12 @@ export class FakeFsGithub extends FakeFs {
     return res
   }
 
+  async walk(): Promise<Entity[]> {
+    return await this.list(true)
+  }
+
   async walkPartial(): Promise<Entity[]> {
-    return await this.walk()
+    return await this.list(false)
   }
 
   private async ensureLoaded() {
@@ -441,7 +462,10 @@ export class FakeFsGithub extends FakeFs {
       (k) => !k.startsWith(OWN_FOLDER),
     ).length
     const commit = await this.call('POST', '/git/commits', {
-      message: `Sync from ${this.device}, ${changes} changes`,
+      message:
+        changes === 0
+          ? `Record file times from ${this.device}`
+          : `Sync from ${this.device}, ${changes} changes`,
       tree: tree.sha,
       parents: [head],
     })
@@ -468,9 +492,11 @@ export class FakeFsGithub extends FakeFs {
    */
   async finishSync(): Promise<void> {
     this.uncommitted = []
-    if (this.staged.size === 0) {
+    // fallback times alone are worth a commit: it's the one lookup per file
+    if (this.staged.size === 0 && !this.timesDirty) {
       return
     }
+    this.timesDirty = false
     const all = [...this.staged.keys()]
     try {
       let head = this.headSha!

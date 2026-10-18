@@ -327,6 +327,46 @@ describe('GitHub remote', () => {
     assert.equal(notices.length, 1)
   })
 
+  it('looks up a file edited on github.com once, however many walks', async () => {
+    const repo = new MockRepo({ 'work/a.md': 'a', 'work/b.md': 'b' })
+    repo.push({ [TIMES]: timesFile({}, repo) }, '2026-01-02T00:00:00Z')
+    const fs = fsFor(repo)
+    const lookups = () =>
+      repo.requests.filter((r) => /\/commits\?/.test(r.url)).length
+    repo.requests = []
+    await fs.walkPartial()
+    assert.equal(lookups(), 0, 'a partial listing makes no lookups')
+    await fs.walk()
+    assert.equal(lookups(), 2)
+    // the tree is reused while the head holds: only the ref is read again
+    repo.requests = []
+    await fs.walk()
+    assert.equal(lookups(), 0)
+    assert.equal(repo.requests.length, 1)
+  })
+
+  it('commits fallback times alone, so the lookup is made once', async () => {
+    const repo = new MockRepo({ 'work/a.md': 'a' })
+    repo.push({ [TIMES]: timesFile({}, repo) }, '2026-01-02T00:00:00Z')
+    const fs = fsFor(repo)
+    await fs.walk()
+    const before = repo.commits.size
+    await fs.finishSync()
+    assert.equal(repo.commits.size, before + 1)
+    const times = JSON.parse(repo.files()[TIMES])
+    assert.equal(times['work/a.md'].mtime, Date.parse('2026-01-01T00:00:00Z'))
+    // a new device run finds the time in the file: no lookup, no commit
+    repo.requests = []
+    const next = fsFor(repo)
+    await next.walk()
+    await next.finishSync()
+    assert.equal(
+      repo.requests.filter((r) => /\/commits\?/.test(r.url)).length,
+      0,
+    )
+    assert.equal(repo.commits.size, before + 1)
+  })
+
   it('renames a folder in one commit', async () => {
     const repo = new MockRepo({
       'work/a.md': 'a',

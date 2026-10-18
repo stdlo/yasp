@@ -93,7 +93,9 @@ Use a second scratch vault (or a second device) with the same two remotes.
 ## 6. GitHub edge cases
 
 - [ ] 6.1 Edit `work/c.md` on github.com, sync: the edit arrives, and a notice says a file changed outside the plugin
-  takes the time of its last commit. [`GET commits?path=work/c.md&per_page=1` gives `commit.committer.date`.]
+  takes the time of its last commit. [`GET commits?path=work/c.md&per_page=1` gives `commit.committer.date`.] Sync once
+  more: GitHub gains a "Record file times" commit (or the sync's own commit holds them), and the next sync makes no
+  such lookup and no commit.
 - [ ] 6.2 A file over 100 MB in `work`: a notice says it isn't synced; the rest of the run commits.
 - [ ] 6.3 Not easy to provoke, skip unless it happens: when the hourly limit runs out, the notice names the limit
   rather than a generic failure. [A 403 or 429 with `x-ratelimit-remaining: 0`.]

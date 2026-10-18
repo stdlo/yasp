@@ -49,7 +49,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   Obsidian's `requestUrl`: one listing of the branch head's tree, every
   write in a run staged as a blob and committed once at its end, a moved
   branch rebuilt with only the paths changed there dropped, file times kept
-  in `.remotely-save-lite/times.json`, and a routed folder renamed in one
+  in `.remotely-save-lite/times.json` (a file edited on github.com gets its
+  last commit's time once, recorded by a commit of its own when need be), the
+  loaded tree reused while the head holds, and a routed folder renamed in one
   commit. Encryption on a GitHub remote is refused for now.
 - The settings page's "Remotes and routes": each remote read from the table
   ("everything except …", "only …") with its on/off switch, a GitHub
