@@ -135,9 +135,6 @@ export interface RemotelySavePluginSettings {
    */
   logToDB?: boolean
 
-  /**
-   * @deprecated
-   */
   howToCleanEmptyFolder?: EmptyFolderCleanType
 }
 
