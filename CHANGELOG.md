@@ -66,7 +66,7 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   table's rows, saved only when the setup isn't refused (the reason shown).
   A route change forgets the old remote's records under the folder and
   offers to delete its copies there; so does a change of the default row,
-  for everything no route names. A GitHub remote's place (owner, repo,
+  for everything no route names (the config folder excepted). A GitHub remote's place (owner, repo,
   branch, folder) is saved with a Save button, asks first when the remote has
   synced before, and then forgets its records (both refuse while a sync
   runs); Remove clears them too, and a new remote's id is never reused.

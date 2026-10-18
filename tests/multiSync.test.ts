@@ -1145,8 +1145,8 @@ describe('Several remotes: the orchestrator', () => {
     w.settings.routes = after
     w.settings.routesUpdatedAt = 2
     const a = w.settings.remotes![0]
-    await forgetUnrouted(w.db, VAULT, a, before, after)
-    await deleteRemoteUnrouted(w.fs.a, before, after)
+    await forgetUnrouted(w.db, VAULT, a, before, after, '.obsidian')
+    await deleteRemoteUnrouted(w.fs.a, before, after, '.obsidian')
     // a keeps its records of the folder it still owns, and nothing else
     const keys = (
       await getAllPrevSyncRecordsByVaultAndProfile(w.db, VAULT, profileIdOf(a))
@@ -1156,6 +1156,38 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(userKeys(w.fs.a), ['areas/x.md'])
     assert.deepEqual(userKeys(w.fs.b), ['n.md', 'work/w.md'])
     assert.deepEqual(w.local.keys(), ['areas/x.md', 'n.md', 'work/w.md'])
+  })
+
+  it('leaves the config folder alone when the default row changes', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a', { syncConfigDir: true }), remote('b')],
+        [{ folder: 'areas', target: 'a' }],
+      ),
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('areas/x.md', 'x')
+    w.local.put('.obsidian/app.json', '{}')
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    // a still syncs `.obsidian`, whatever the routes say
+    assert.deepEqual(userKeys(w.fs.a), [
+      '.obsidian/app.json',
+      'areas/x.md',
+      'n.md',
+    ])
+    const before = w.settings.routes!
+    const after = { ...before, defaultTarget: 'b' }
+    const a = w.settings.remotes![0]
+    await forgetUnrouted(w.db, VAULT, a, before, after, '.obsidian')
+    await deleteRemoteUnrouted(w.fs.a, before, after, '.obsidian')
+    const keys = (
+      await getAllPrevSyncRecordsByVaultAndProfile(w.db, VAULT, profileIdOf(a))
+    ).map((r) => r.key)
+    assert.deepEqual(keys.filter((k) => k!.startsWith('.obsidian')).sort(), [
+      '.obsidian/',
+      '.obsidian/app.json',
+    ])
+    assert.deepEqual(userKeys(w.fs.a), ['.obsidian/app.json', 'areas/x.md'])
   })
 
   it('marks each remote in the status bar', () => {

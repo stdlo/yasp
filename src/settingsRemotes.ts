@@ -134,13 +134,20 @@ const saveTable = async (
       oldDefault,
       before,
       draft,
+      plugin.app.vault.configDir,
     )
     await offerDelete(
       app,
       plugin,
       oldDefault,
       'Everything outside the routed folders',
-      async (fs) => await deleteRemoteUnrouted(fs, before, draft),
+      async (fs) =>
+        await deleteRemoteUnrouted(
+          fs,
+          before,
+          draft,
+          plugin.app.vault.configDir,
+        ),
     )
   }
   return true

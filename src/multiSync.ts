@@ -374,14 +374,20 @@ export const defaultChange = (before: RouteTable, after: RouteTable) =>
 
 /**
  * Whether a key is one the default row owns across a table change: under no
- * route of either table, and not a folder above one (which a route's own
- * notes sit under).
+ * route of either table, not a folder above one (which a route's own notes
+ * sit under), and not in the config folder (which syncs with the remote that
+ * has `syncConfigDir`, whatever the routes say).
  */
-const isUnrouted = (before: RouteTable, after: RouteTable) => {
+const isUnrouted = (
+  before: RouteTable,
+  after: RouteTable,
+  configDir: string,
+) => {
   const folders = [...before.routes, ...after.routes].map((r) => r.folder)
   return (key: string) => {
     const path = key.replace(/\/+$/, '')
     return (
+      !isUnder(path, configDir) &&
       !path.startsWith('.remotely-save-lite/') &&
       !folders.some((f) => isUnder(path, f)) &&
       !(key.endsWith('/') && folders.some((f) => isUnder(f, path)))
@@ -396,12 +402,13 @@ export const forgetUnrouted = async (
   remote: RemoteConfig,
   before: RouteTable,
   after: RouteTable,
+  configDir: string,
 ) =>
   await clearProfileRecords(
     db,
     vaultRandomID,
     profileIdOf(remote),
-    isUnrouted(before, after),
+    isUnrouted(before, after, configDir),
   )
 
 /** Deletes what the default row owned on the old default, after its change. */
@@ -409,7 +416,8 @@ export const deleteRemoteUnrouted = async (
   fs: FakeFs,
   before: RouteTable,
   after: RouteTable,
-) => await deleteRemoteWhere(fs, isUnrouted(before, after))
+  configDir: string,
+) => await deleteRemoteWhere(fs, isUnrouted(before, after, configDir))
 
 /** Deletes a folder's copies on a remote, after a route change. */
 export const deleteRemoteFolder = async (fs: FakeFs, folder: string) =>
