@@ -74,17 +74,14 @@ export const ancestorFolders = (table: RouteTable, target: string) => {
 }
 
 /**
- * The folder keys a remote's run must never delete as empty: those above one
- * of its own routes (in its run only as parents) and those above a route to
- * another target (their subtree holds notes the run can't see). The engine
- * seeds its kept-folder set with them.
+ * The folder keys no run may delete as empty: those above any route, whoever
+ * owns it (in a run only as parents, or holding notes the run can't see).
+ * The planner skips them like `howToCleanEmptyFolder === 'skip'` does, and
+ * only those present in the run: it never creates one.
  */
-export const sharedFoldersFor = (table: RouteTable, target: string) => {
-  const res = ancestorFolders(table, target)
+export const sharedFoldersFor = (table: RouteTable) => {
+  const res = new Set<string>()
   for (const route of table.routes) {
-    if (route.target === target) {
-      continue
-    }
     const parts = route.folder.split('/')
     for (let i = 1; i < parts.length; ++i) {
       res.add(`${parts.slice(0, i).join('/')}/`)

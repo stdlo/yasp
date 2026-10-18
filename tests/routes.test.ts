@@ -63,23 +63,18 @@ describe('Routes: the table', () => {
     assert.equal(dropbox('a.md'), true)
   })
 
-  it("shares the folders above any other target's route, and its own", () => {
-    // Dropbox's run holds `areas` but not what GitHub owns below it
-    assert.deepEqual([...sharedFoldersFor(TABLE, 'dropbox')], ['areas/'])
-    // GitHub's run holds `areas` only as an ancestor
-    assert.deepEqual([...sharedFoldersFor(TABLE, 'github')], ['areas/'])
+  it('shares the folders above every route', () => {
+    assert.deepEqual([...sharedFoldersFor(TABLE)], ['areas/'])
     assert.deepEqual(
       [
-        ...sharedFoldersFor(
-          {
-            routes: [{ folder: 'a/b', target: LOCAL_ONLY }],
-            defaultTarget: 'x',
-          },
-          'x',
-        ),
+        ...sharedFoldersFor({
+          routes: [{ folder: 'a/b/c', target: LOCAL_ONLY }],
+          defaultTarget: 'x',
+        }),
       ],
-      ['a/'],
+      ['a/', 'a/b/'],
     )
+    assert.equal(sharedFoldersFor({ routes: [], defaultTarget: 'x' }).size, 0)
   })
 
   it("keeps a disabled remote's folders from every other remote", () => {

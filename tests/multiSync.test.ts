@@ -25,7 +25,7 @@ import {
 } from '../src/multiSync'
 import { profileIdOf } from '../src/remotes'
 import { remoteMarks } from '../src/statusBar'
-import { OWNERSHIP_FILE_KEY } from '../src/routes'
+import { LOCAL_ONLY, OWNERSHIP_FILE_KEY } from '../src/routes'
 
 // The orchestrator over the real engine: two in-memory remotes, an in-memory
 // vault and database, and the routing rules of `docs/design.md`.
@@ -518,6 +518,42 @@ describe('Several remotes: the orchestrator', () => {
       assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
       assert.deepEqual(w.local.keys(), ['areas/x.md', 'n.md', 'n2.md'])
       assert.deepEqual(userKeys(w.fs.a), ['areas/x.md', 'n.md', 'n2.md'])
+    })
+  })
+
+  describe('a route below a folder some runs never see', () => {
+    const belowFolder = () => {
+      const w = world(
+        settingsWith(
+          [remote('a'), remote('b')],
+          [
+            { folder: 'work', target: 'b' },
+            { folder: 'journal/private', target: LOCAL_ONLY },
+          ],
+        ),
+      )
+      w.settings.howToCleanEmptyFolder = 'clean_both'
+      w.local.put('n.md', 'n')
+      w.local.put('work/w.md', 'w')
+      return w
+    }
+
+    it('syncs both remotes when the parent folder is in one run only', async () => {
+      const w = belowFolder()
+      w.local.put('journal/j.md', 'j')
+      w.local.put('journal/private/p.md', 'p')
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(userKeys(w.fs.a), ['journal/j.md', 'n.md'])
+      assert.deepEqual(userKeys(w.fs.b), ['work/w.md'])
+    })
+
+    it('syncs when the parent folder exists nowhere', async () => {
+      const w = belowFolder()
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(userKeys(w.fs.a), ['n.md'])
+      assert.deepEqual(w.local.keys(), ['n.md', 'work/w.md'])
     })
   })
 

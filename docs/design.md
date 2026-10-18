@@ -79,9 +79,11 @@ run with:
   "empty local list" hard reset when a routed folder is deleted). A path is in the run when the table routes it to
   this remote, **plus the ancestor folders of each of its routes** (`areas` for a route `areas/job`): folder entries
   only, which the planner needs as parents and which create nothing on their own;
-- **a set of kept folders** (`sharedFoldersFor()` in `src/routes.ts`) seeded into the planner's `keptFolder`:
-  the ancestor folders of this remote's routes and of every other target's routes, so the empty-folder cleanup
-  (`clean_both`, the default) never deletes a folder whose subtree holds notes another run owns.
+- **a set of shared folders** (`sharedFoldersFor()` in `src/routes.ts`, the ancestor folders of every route) passed
+  to the planner, which treats a folder in it like `howToCleanEmptyFolder: 'skip'` (decision 105, the parent kept),
+  so the empty-folder cleanup (`clean_both`, the default) never deletes a folder whose subtree holds notes another
+  run owns. It applies only to folders present in the run and never creates one (seeding the planner's `keptFolder`
+  would fail a run that doesn't hold the folder).
 
 Before the runs, in this order: the remotes' routes files are read and a newer table adopted; the hold rule
 (below); this device's routes files are written; then the routed-folder renames recorded since the last sync are
@@ -177,7 +179,8 @@ remotes, and the sync says it once in a notice.
 ## Tests the routing needs
 
 The table's longest match and whole-segment matching; each refused setup; a two-level route (`areas` and
-`areas/job` on two remotes) syncing without the engine's `keptFolder` error; a move across a boundary; a route rename
+`areas/job` on two remotes) syncing without the engine's `keptFolder` error, as does a route below a folder that some runs don't hold (or that
+exists nowhere); a move across a boundary; a route rename
 rewriting records with no deletions; a folder gone while unwatched holding both runs; a newer ownership file adopted;
 a contradicting one stopping the runs; a disabled remote's folders reaching no other remote. All in
 `tests/routes.test.ts`, `tests/remotes.test.ts`, and `tests/multiSync.test.ts`, the last over the real engine.
@@ -206,7 +209,7 @@ syncing one folder to two remotes on purpose (a backup); each could come later a
 9. **The per-remote detail is a notice** without counts.
 10. **The empty-folder cleanup keeps shared folders.** With `areas → A` and `areas/job → B`, neither run may delete
     `areas/` as empty: A's run doesn't see `areas/job/`, and B's sees `areas/` only as an ancestor. The planner's
-    kept-folder set is seeded for each run (above).
+    shared-folder set is passed to each run and skips those folders (above).
 11. **The Dropbox credentials have one home.** A Dropbox remote holds none of its own: its run reads the top-level
     `dropbox`, which the OAuth flow, Revoke, Clear local, and the expiry write, so none of them can leave a second
     copy behind. A copy an earlier build saved on the remote is deleted when the settings load.

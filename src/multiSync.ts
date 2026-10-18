@@ -718,9 +718,7 @@ export const syncAllRemotes = async (
       isRouted(settings)
         ? routeFilterFor(routeTableOf(settings), remote.id)
         : undefined,
-      isRouted(settings)
-        ? sharedFoldersFor(routeTableOf(settings), remote.id)
-        : undefined,
+      isRouted(settings) ? sharedFoldersFor(routeTableOf(settings)) : undefined,
     )
     fsEncrypt.closeResources()
     const rolledBack = await rollBack(run, before, deps)

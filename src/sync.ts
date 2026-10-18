@@ -323,8 +323,7 @@ export const getSyncPlanInplace = async (
   profiler?.insert('getSyncPlanInplace: finish sorting')
   profiler?.insertSize('sizeof sortedKeys', sortedKeys)
 
-  // folders holding notes another remote's run owns are never emptied here
-  const keptFolder = new Set<string>(sharedFolders)
+  const keptFolder = new Set<string>()
   const mayDeleteFolder = new Set<string>()
 
   for (let i = 0; i < sortedKeys.length; ++i) {
@@ -382,7 +381,9 @@ export const getSyncPlanInplace = async (
         keptFolder.delete(key) // no need to save it in the Set later
         mayDeleteFolder.delete(key) // must ignore this
       } else {
-        if (howToCleanEmptyFolder === 'skip') {
+        // a shared folder holds notes another remote's run owns (or is only
+        // a parent here), so it is never emptied: skipped like 'skip' does
+        if (howToCleanEmptyFolder === 'skip' || sharedFolders?.has(key)) {
           mixedEntry.decisionBranch = 105
           mixedEntry.decision = 'folder_to_skip'
           mixedEntry.change = false
