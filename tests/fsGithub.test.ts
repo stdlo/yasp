@@ -415,7 +415,7 @@ describe('GitHub remote', () => {
     assert.equal(message(), 'Record file times from laptop')
   })
 
-  it("makes no empty commit when a moved branch leaves only the head's times", async () => {
+  it('keeps its looked-up times on a moved branch', async () => {
     const repo = new MockRepo({ 'work/a.md': 'a' })
     repo.push({ [TIMES]: timesFile({}, repo) }, '2026-01-02T00:00:00Z')
     const fs = fsFor(repo)
@@ -426,9 +426,34 @@ describe('GitHub remote', () => {
       moved = repo.head
     }
     await fs.finishSync()
-    // nothing of ours was staged: the other device's head stands
-    assert.equal(repo.head, moved)
+    // the other device's head, then ours with the time looked up for a.md
+    const commit = repo.commits.get(repo.head)!
+    assert.deepEqual(commit.parents, [moved])
+    assert.equal(commit.message, 'Record file times from laptop')
+    const times = JSON.parse(repo.files()[TIMES])
+    assert.equal(times['work/a.md'].sha, repo.blob(enc('a')))
     assert.deepEqual(fs.uncommittedKeys(), [])
+  })
+
+  it("makes no empty commit when a moved branch leaves only the head's times", async () => {
+    const repo = new MockRepo({ 'work/a.md': 'a' })
+    repo.push(
+      { [TIMES]: timesFile({ 'work/a.md': [1_000, 'a'] }, repo) },
+      '2026-01-02T00:00:00Z',
+    )
+    const fs = fsFor(repo)
+    await fs.walk()
+    // nothing looked up; our one change meets the other device's on a.md
+    await fs.writeFile('work/a.md', buf('A'), 2_000, 2_000)
+    let moved = ''
+    repo.beforePatch = () => {
+      repo.push({ 'work/a.md': 'theirs' }, '2026-01-03T00:00:00Z')
+      moved = repo.head
+    }
+    await fs.finishSync()
+    // nothing of ours is left to commit: the other device's head stands
+    assert.equal(repo.head, moved)
+    assert.deepEqual(fs.uncommittedKeys(), ['work/a.md'])
   })
 
   it('renames a folder in one commit', async () => {

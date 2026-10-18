@@ -107,6 +107,8 @@ export class FakeFsGithub extends FakeFs {
   private uncommitted: string[] = []
   /** a walk gave files a fallback time that the times file doesn't hold yet */
   private timesDirty = false
+  /** the fallback times this head's walks looked up, kept for a retry */
+  private lookedUp: Record<string, TimeEntry> = {}
 
   constructor(
     readonly config: GithubConfig,
@@ -258,6 +260,7 @@ export class FakeFsGithub extends FakeFs {
     this.blobs = blobs
     this.folders = folders
     this.times = await this.readTimes(blobs)
+    this.lookedUp = {}
   }
 
   /**
@@ -303,6 +306,7 @@ export class FakeFsGithub extends FakeFs {
           sha: blob.sha,
         }
         this.times[path] = time
+        this.lookedUp[path] = time
         fallbacks.push(path)
       }
       res.push({
@@ -549,12 +553,11 @@ export class FakeFsGithub extends FakeFs {
       let baseTree = this.treeSha!
       let headTimes = this.times
       const dropped: string[] = []
+      let keptTimes = 0
       for (let attempt = 0; attempt < 3; ++attempt) {
-        // on a moved branch, nothing left staged means the head's own times
-        // stand and a commit would be empty; this run's looked-up times are
-        // lost with it (a retry reads only the head's), so the next sync
-        // looks them up again
-        if (attempt > 0 && this.staged.size === 0) {
+        // on a moved branch, nothing left staged and no looked-up time to
+        // add means the head's own times stand and a commit would be empty
+        if (attempt > 0 && this.staged.size === 0 && keptTimes === 0) {
           this.uncommitted = dropped
           this.headSha = undefined
           return
@@ -591,6 +594,18 @@ export class FakeFsGithub extends FakeFs {
         head = newHead
         baseTree = next.treeSha
         headTimes = await this.readTimes(next.blobs)
+        // a time this run looked up still holds for a file the other device
+        // left alone, so the lookup isn't made again next sync
+        keptTimes = 0
+        for (const [path, time] of Object.entries(this.lookedUp)) {
+          if (
+            next.blobs.get(path)?.sha === time.sha &&
+            headTimes[path]?.sha !== time.sha
+          ) {
+            headTimes[path] = time
+            ++keptTimes
+          }
+        }
         this.blobs = next.blobs
         this.folders = next.folders
       }
