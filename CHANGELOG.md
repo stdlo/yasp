@@ -73,6 +73,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 
 ### Changed
 
+- The settings export (QR code and URI) leaves out the list of remotes (their
+  tokens and encryption passwords), the routes, and the pending renames, all
+  per-device state; its type admits `basic_and_advanced` and `dropbox` only.
 - The plugin id is `remotely-save-lite`, so it installs beside Remotely Save
   with its own settings, local database, protocol actions, and Dropbox
   redirect (`obsidian://remotely-save-lite-cb-dropbox`).

@@ -71,7 +71,7 @@ export type SyncDirectionType =
 
 export type CipherMethodType = 'rclone-base64' | 'openssl-base64' | 'unknown'
 
-export type QRExportType = 'basic_and_advanced' | SUPPORTED_SERVICES_TYPE
+export type QRExportType = 'basic_and_advanced' | 'dropbox'
 
 export interface ProfilerConfig {
   enable?: boolean

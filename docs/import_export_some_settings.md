@@ -6,8 +6,9 @@ So this plugin has a helper function to export those settings as a QR code, then
 
 Attention:
 
-1. Oauth2 - related information is omitted. It means that Dropbox, OneDrive login credentials are NOT included in the QR Code.
-2. Please, NEVER share the QR Code to others. It's as equivalent to the login credentials.
+1. Oauth2 - related information is omitted. It means that Dropbox login credentials are NOT included in the QR Code.
+2. The list of remotes is omitted too: no GitHub token, no remote's encryption password, no routes (which hold each device's own default row), and nothing pending on this device. Set the remotes and routes up on each device; the routes' ownership then arrives through the remotes' routes files.
+3. Please, NEVER share the QR Code to others. It still carries the top-level settings, such as the encryption password, so treat it as equivalent to login credentials.
 
 Steps:
 

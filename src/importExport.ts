@@ -20,6 +20,12 @@ export const exportQrCodeUri = async (
   if (exportFields === 'basic_and_advanced') {
     settings2 = cloneDeep(settings)
     delete settings2.dropbox
+    // per-device state and credentials: the remotes (tokens, passwords), the
+    // routes with this device's default row, and what's pending here
+    delete settings2.remotes
+    delete settings2.routes
+    delete settings2.routesUpdatedAt
+    delete settings2.pendingRenames
   } else if (exportFields === 'dropbox') {
     settings2 = { dropbox: cloneDeep(settings.dropbox) }
   }
