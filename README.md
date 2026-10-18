@@ -112,7 +112,9 @@ reach two remotes, or a route names a remote that doesn't exist, isn't saved.
   Obsidian wasn't watching (renamed in a file manager, say) holds that
   remote's sync and asks once what happened, rather than deleting anything.
 - Each remote keeps `.remotely-save-lite/routes.json`, the folders it owns, so
-  another device sees a route change made here.
+  another device sees a route change made here. A folder that another device
+  removed from the table stops syncing on this one too, until you route it
+  again.
 - With one remote and no routes, the plugin syncs exactly as a single-remote
   setup always has.
 

@@ -339,7 +339,9 @@ export const heldQuestions = (
       goneTarget: route.target,
       held,
     }
-    if (appeared.length > 0) {
+    // offered to the first question only: one new folder can't be the
+    // rename of two gone ones, and the default stays held through the first
+    if (appeared.length > 0 && res.length === 0) {
       q.appeared = appeared[0]
       if (
         table.defaultTarget !== undefined &&

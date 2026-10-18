@@ -230,6 +230,17 @@ describe('Routes: the hold rule', () => {
     ])
   })
 
+  it('offers the new folder to the first question only', () => {
+    // both github folders are gone, and one new folder appeared
+    const local = new Set(['areas', 'new'])
+    const res = heldQuestions(TABLE, local, records)
+    assert.equal(res.length, 2)
+    assert.equal(res[0].appeared, 'new')
+    assert.deepEqual(res[0].held, ['github', 'dropbox'])
+    assert.equal(res[1].appeared, undefined)
+    assert.deepEqual(res[1].held, ['github'])
+  })
+
   it("holds only the gone folder's run when nothing new appeared", () => {
     const local = new Set(['areas', 'areas/job'])
     assert.deepEqual(heldQuestions(TABLE, local, records), [
