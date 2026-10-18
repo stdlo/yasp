@@ -347,6 +347,12 @@ const renderGithubSettings = (
           // the records go first: a sync starting between the two awaits
           // would otherwise run at the new place with the old records
           await forgetRemote(plugin.db, plugin.vaultRandomID, remote)
+          // and one may have started during the clearing: it runs at the old
+          // place, so the place stays old and its records stay right for it
+          if (plugin.isSyncing) {
+            new Notice('A sync is running: save once it finishes.')
+            return
+          }
           for (const k of keys) {
             gh[k] = draft[k] ?? ''
           }

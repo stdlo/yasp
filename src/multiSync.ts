@@ -234,20 +234,22 @@ const applyPendingRenames = async (
 }
 
 /**
- * Holds the run of a remote whose folder is still to move: a rename recorded
- * during this sync's awaits isn't in the pass above, so a remote that lacks
- * it in `done` and has records under `from` would upload the new folder
- * beside the old. It waits and the next sync moves the folder first. A
- * remote already in `failed` keeps its own reason.
+ * Marks as failed, with the reason, the run of a remote whose folder is still
+ * to move: a rename recorded during this sync's awaits isn't in the pass
+ * above, so a remote that lacks it in `done` and has records under `from`
+ * would upload the new folder beside the old. It waits and the next sync
+ * moves the folder first. A remote already in `failed` keeps its own reason;
+ * an encrypted remote never moves a folder (the pass above skips it), so its
+ * run goes ahead.
  */
-const holdForPendingRenames = async (
+const failRunsAwaitingRenames = async (
   settings: RemotelySavePluginSettings,
   runs: Run[],
   deps: MultiSyncDeps,
   failed: Map<string, string>,
 ) => {
   for (const run of runs) {
-    if (failed.has(run.remote.id)) {
+    if (failed.has(run.remote.id) || hasPassword(run.settings)) {
       continue
     }
     const waiting = (settings.pendingRenames ?? []).filter(
@@ -710,7 +712,7 @@ export const syncAllRemotes = async (
     // includes a rename the hold rule's answer just recorded
     if (!dry) {
       await applyPendingRenames(settings, runs, deps, failed)
-      await holdForPendingRenames(settings, runs, deps, failed)
+      await failRunsAwaitingRenames(settings, runs, deps, failed)
     }
   }
 

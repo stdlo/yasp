@@ -551,7 +551,9 @@ export class FakeFsGithub extends FakeFs {
       const dropped: string[] = []
       for (let attempt = 0; attempt < 3; ++attempt) {
         // on a moved branch, nothing left staged means the head's own times
-        // stand and a commit would be empty
+        // stand and a commit would be empty; this run's looked-up times are
+        // lost with it (a retry reads only the head's), so the next sync
+        // looks them up again
         if (attempt > 0 && this.staged.size === 0) {
           this.uncommitted = dropped
           this.headSha = undefined
