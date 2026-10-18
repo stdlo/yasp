@@ -41,7 +41,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   claim on it. A rename the remote already made before the plugin stopped goes on to the
   records instead of failing that remote at every sync. A rename stays
   pending until every remote in the list has it (a switched-off remote gets it
-  when it's on again), and one recorded while a sync runs isn't lost. Dropbox's
+  when it's on again), and one recorded while a sync runs isn't lost: a remote
+  that holds the old folder waits that sync (marked failed, with the reason)
+  and the next moves the folder first. Dropbox's
   folder move now reports its failure (upstream only logged it), so a failed
   move keeps its rename pending and the records where they were. A dry run writes
   nothing: no renames, no routes files, no adopted table, and no question.

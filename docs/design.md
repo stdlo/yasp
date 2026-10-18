@@ -108,9 +108,14 @@ the tested engine once per remote keeps each run as it was.
   each remote that holds it (one Dropbox move, one GitHub commit) and then rewrites that profile's records under the
   old folder to the new one, so the run finds everything equal. A remote whose rename fails keeps it pending and
   doesn't run that sync, and a switched-off remote keeps it pending until it's on again (a rename is finished once
-  every remote in the list has it; a remote removed from the list drops out of the check), unless it already holds the new folder and not the old one (renamed before the plugin
-  stopped), when the records move as if the rename had just gone through. An encrypted remote names each path on its own, so it gets no folder move: its run deletes
-  and uploads, which the percentage guard may stop.
+  every remote in the list has it; a remote removed from the list drops out of the check), unless it already holds
+  the new folder and not the old one (renamed before the plugin stopped), when the records move as if the rename had
+  just gone through. A folder renamed while the renames run isn't in that pass: a remote that lacks it and has
+  records under the old folder doesn't run that sync either (its route already names the new folder, so it would
+  upload that beside the old), and the next sync moves the folder first. Such a remote shows as failed, as one whose
+  own rename failed does: `✗` and the reason ("waiting for the move of `docs` to `notes`") on hover, and one notice
+  at the end of the sync. A dry run holds nothing. An encrypted remote names each path on its own, so it gets no
+  folder move: its run deletes and uploads, which the percentage guard may stop.
 - **A routed folder gone when the plugin wasn't watching** (renamed in Finder, restored from a backup, renamed on
   another device): before the runs, when a routed folder is missing locally while its remote still holds files
   there (its profile has records under it), that remote's run is **held**, and so is the default's when a new,

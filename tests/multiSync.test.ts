@@ -700,13 +700,25 @@ describe('Several remotes: the orchestrator', () => {
     // the vault's `docs` is renamed while b's folder is being moved
     w.fs.b.onRename = async () => {
       w.fs.b.onRename = undefined
+      w.local.files.set('notes/d.md', w.local.files.get('docs/d.md')!)
+      w.local.files.delete('docs/d.md')
       recordFolderRename(w.settings, 'docs', 'notes', 3)
     }
-    await sync(w)
-    // not lost: it waits for the next sync
+    const res = await sync(w)
+    assert.equal(res.a, 'ok')
+    // b waits: its run would upload `notes` beside its `docs`
+    assert.match(res.b, /^failed: waiting for the move of docs to notes/)
+    assert.deepEqual(userKeys(w.fs.b), ['docs/d.md', 'job/w.md'])
+    // not lost: it waits for the next sync, which moves the folder first
     assert.deepEqual(w.settings.pendingRenames, [
       { from: 'docs', to: 'notes', done: [] },
     ])
+    w.fs.b.removes = 0
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(w.fs.b.renames, ['work/=>job/', 'docs/=>notes/'])
+    assert.deepEqual(userKeys(w.fs.b), ['job/w.md', 'notes/d.md'])
+    assert.equal(w.fs.b.removes, 0)
+    assert.deepEqual(w.settings.pendingRenames, [])
   })
 
   it('lets a second device sync between the routes file and the folder move', async () => {

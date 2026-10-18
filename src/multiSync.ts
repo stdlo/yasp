@@ -234,6 +234,48 @@ const applyPendingRenames = async (
 }
 
 /**
+ * Holds the run of a remote whose folder is still to move: a rename recorded
+ * during this sync's awaits isn't in the pass above, so a remote that lacks
+ * it in `done` and has records under `from` would upload the new folder
+ * beside the old. It waits and the next sync moves the folder first. A
+ * remote already in `failed` keeps its own reason.
+ */
+const holdForPendingRenames = async (
+  settings: RemotelySavePluginSettings,
+  runs: Run[],
+  deps: MultiSyncDeps,
+  failed: Map<string, string>,
+) => {
+  for (const run of runs) {
+    if (failed.has(run.remote.id)) {
+      continue
+    }
+    const waiting = (settings.pendingRenames ?? []).filter(
+      (p) => !p.done.includes(run.remote.id),
+    )
+    if (waiting.length === 0) {
+      continue
+    }
+    const records = await getAllPrevSyncRecordsByVaultAndProfile(
+      deps.db,
+      deps.vaultRandomID,
+      run.profileID,
+    )
+    for (const rename of waiting) {
+      if (
+        records.some((r) => isUnder(r.key!.replace(/\/+$/, ''), rename.from))
+      ) {
+        failed.set(
+          run.remote.id,
+          `waiting for the move of ${rename.from} to ${rename.to}, which comes first in the next sync`,
+        )
+        break
+      }
+    }
+  }
+}
+
+/**
  * Records a routed folder renamed in the vault: the route follows now, and
  * the remotes' folders and records follow before the next run. A rename of
  * a folder no route sits in or under changes nothing here.
@@ -660,6 +702,7 @@ export const syncAllRemotes = async (
     // includes a rename the hold rule's answer just recorded
     if (!dry) {
       await applyPendingRenames(settings, runs, deps, failed)
+      await holdForPendingRenames(settings, runs, deps, failed)
     }
   }
 
