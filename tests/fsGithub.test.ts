@@ -406,7 +406,7 @@ describe('GitHub remote', () => {
     // the routes file alone is a change, not a record of times
     await fs.writeFile(ROUTES, buf('{}'), 1, 1)
     await fs.finishSync()
-    assert.equal(message(), 'Sync from laptop, 1 changes')
+    assert.equal(message(), 'Sync from laptop, 1 change')
     // fallback times alone
     const next = fsFor(repo)
     repo.push({ 'work/a.md': 'edited on the web' }, '2026-01-05T00:00:00Z')

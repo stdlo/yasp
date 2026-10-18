@@ -1085,7 +1085,7 @@ describe('Several remotes: the orchestrator', () => {
     // an edit the commit drops: the remote still holds the old text
     w.local.put('work/n.md', 'one\ntwo here\nthree\n', 2_000_000)
     dropping.drop.add('work/n.md')
-    assert.match((await sync(w)).b, /^failed: 1 changes/)
+    assert.match((await sync(w)).b, /^failed: 1 change wasn't/)
     // then the remote's copy changes, from another device
     dropping.drop.clear()
     dropping.put('work/n.md', 'one\ntwo\nthree there\n', 3_000_000)

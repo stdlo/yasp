@@ -512,7 +512,7 @@ export class FakeFsGithub extends FakeFs {
       message:
         changes === 0
           ? `Record file times from ${this.device}`
-          : `Sync from ${this.device}, ${changes} changes`,
+          : `Sync from ${this.device}, ${changes} ${changes === 1 ? 'change' : 'changes'}`,
       tree: tree.sha,
       parents: [head],
     })

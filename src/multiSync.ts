@@ -774,7 +774,10 @@ export const syncAllRemotes = async (
     fsEncrypt.closeResources()
     const rolledBack = await rollBack(run, before, deps)
     if (rolledBack > 0) {
-      const count = `${rolledBack} changes weren't committed; the next sync tries them again.`
+      const count =
+        rolledBack === 1
+          ? "1 change wasn't committed; the next sync tries it again."
+          : `${rolledBack} changes weren't committed; the next sync tries them again.`
       error = error === undefined ? count : `${error} (${count})`
     }
     report(remote, {
