@@ -223,9 +223,9 @@ const applyPendingRenames = async (
       rename.done.push(run.remote.id)
     }
   }
-  // a rename is finished once every remote in the list has it, one that is
-  // switched off or failed included; the live list, since a folder renamed
-  // during the awaits above is in it and not in `pending`
+  // a rename is finished once every remote in the list, including one that is
+  // off or failed, has it; the live list, since a folder renamed during the
+  // awaits above is in it and not in `pending`
   const all = (settings.remotes ?? []).map((r) => r.id)
   settings.pendingRenames = (settings.pendingRenames ?? []).filter(
     (p) => !all.every((id) => p.done.includes(id)),

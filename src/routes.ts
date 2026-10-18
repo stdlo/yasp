@@ -337,7 +337,8 @@ export const heldQuestions = (
       held,
     }
     // offered to the first question only: one new folder can't be the
-    // rename of two gone ones, and the default stays held through the first
+    // rename of two gone ones, and only the first question holds the
+    // default's run too
     if (appeared.length > 0 && res.length === 0) {
       q.appeared = appeared[0]
       if (
