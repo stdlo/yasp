@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, its own protocol action
+// Changed for Yet Another Sync Plugin (2026): Dropbox only, its own protocol action
 import cloneDeep from 'lodash/cloneDeep'
 import QRCode from 'qrcode'
 

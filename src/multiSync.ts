@@ -390,7 +390,7 @@ const isUnrouted = (
     const path = key.replace(/\/+$/, '')
     return (
       !isUnder(path, configDir) &&
-      !path.startsWith('.remotely-save-lite/') &&
+      !path.startsWith('.yasp/') &&
       !folders.some((f) => isUnder(path, f)) &&
       !(key.endsWith('/') && folders.some((f) => isUnder(f, path)))
     )

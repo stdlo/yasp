@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, the free engine's choices, its own ids, Smart Conflict rebuilt
+// Changed for Yet Another Sync Plugin (2026): Dropbox only, the free engine's choices, its own ids, Smart Conflict rebuilt
 /**
  * Only type defs here.
  * To avoid circular dependency.
@@ -138,9 +138,9 @@ export interface RemotelySavePluginSettings {
   howToCleanEmptyFolder?: EmptyFolderCleanType
 }
 
-export const COMMAND_URI = 'remotely-save-lite'
-export const COMMAND_CALLBACK = 'remotely-save-lite-cb'
-export const COMMAND_CALLBACK_DROPBOX = 'remotely-save-lite-cb-dropbox'
+export const COMMAND_URI = 'yasp'
+export const COMMAND_CALLBACK = 'yasp-cb'
+export const COMMAND_CALLBACK_DROPBOX = 'yasp-cb-dropbox'
 
 export interface UriParams {
   func?: string
@@ -263,7 +263,7 @@ export interface FileOrFolderMixedState {
   deltimeRemoteFmt?: string
 }
 
-export const DEFAULT_DEBUG_FOLDER = '_debug_remotely_save_lite/'
+export const DEFAULT_DEBUG_FOLDER = '_debug_yasp/'
 export const DEFAULT_SYNC_PLANS_HISTORY_FILE_PREFIX =
   'sync_plans_hist_exported_on_'
 export const DEFAULT_LOG_HISTORY_FILE_PREFIX = 'log_hist_exported_on_'

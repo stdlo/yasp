@@ -442,8 +442,7 @@ const sync = async (
   )
 }
 
-const userKeys = (fs: MemFs) =>
-  fs.keys().filter((k) => !k.startsWith('.remotely-save-lite/'))
+const userKeys = (fs: MemFs) => fs.keys().filter((k) => !k.startsWith('.yasp/'))
 
 describe('Several remotes: the orchestrator', () => {
   before(useFakeMoment)
@@ -974,10 +973,7 @@ describe('Several remotes: the orchestrator', () => {
     // written under the encrypted names, never in the clear
     assert.equal(w.fs.a.text(OWNERSHIP_FILE_KEY), undefined)
     assert.ok(w.fs.a.text(`enc/${OWNERSHIP_FILE_KEY}`) !== undefined)
-    assert.deepEqual(userKeys(w.fs.a), [
-      'enc/.remotely-save-lite/routes.json',
-      'enc/n.md',
-    ])
+    assert.deepEqual(userKeys(w.fs.a), ['enc/.yasp/routes.json', 'enc/n.md'])
     // and read back: a newer one from another device is adopted
     w.fs.a.put(
       `enc/${OWNERSHIP_FILE_KEY}`,

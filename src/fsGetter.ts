@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox and GitHub
+// Changed for Yet Another Sync Plugin (2026): Dropbox and GitHub
 import type { GithubConfig, RemotelySavePluginSettings } from './baseTypes'
 import type { FakeFs } from './fsAll'
 import { FakeFsDropbox } from './fsDropbox'

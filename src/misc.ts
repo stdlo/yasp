@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): no Biome comments
+// Changed for Yet Another Sync Plugin (2026): no Biome comments
 import * as path from 'path'
 import type { Vault } from 'obsidian'
 

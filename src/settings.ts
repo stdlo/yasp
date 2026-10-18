@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only, no paid account, settings the free engine can't honour removed, its own name and protocol action, Smart Conflict offered and its copies cleared with the sync records
+// Changed for Yet Another Sync Plugin (2026): Dropbox only, no paid account, settings the free engine can't honour removed, its own name and protocol action, Smart Conflict offered and its copies cleared with the sync records
 import { Eye, EyeOff, createElement } from 'lucide'
 import {
   type App,

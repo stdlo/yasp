@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): Dropbox only
+// Changed for Yet Another Sync Plugin (2026): Dropbox only
 import { strict as assert } from 'assert'
 
 import type { RemotelySavePluginSettings } from '../src/baseTypes'

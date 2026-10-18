@@ -11,8 +11,8 @@ import {
 // sync (docs/click-through.md).
 
 const TOKEN = 'test-token-not-real'
-const TIMES = '.remotely-save-lite/times.json'
-const ROUTES = '.remotely-save-lite/routes.json'
+const TIMES = '.yasp/times.json'
+const ROUTES = '.yasp/routes.json'
 
 const enc = (text: string) => Buffer.from(text).toString('base64')
 const dec = (b64: string) => Buffer.from(b64, 'base64').toString()

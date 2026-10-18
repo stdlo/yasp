@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): the restored engine, Dropbox only, no paid account, its own ids, no Biome comments, Smart Conflict as the default with a notice for each conflict copy
+// Changed for Yet Another Sync Plugin (2026): the restored engine, Dropbox only, no paid account, its own ids, no Biome comments, Smart Conflict as the default with a notice for each conflict copy
 import AggregateError from 'aggregate-error'
 import cloneDeep from 'lodash/cloneDeep'
 import throttle from 'lodash/throttle'
@@ -100,9 +100,9 @@ interface OAuth2Info {
   revokeAuthSetting?: Setting
 }
 
-const iconNameSyncWait = `remotely-save-lite-sync-wait`
-const iconNameSyncRunning = `remotely-save-lite-sync-running`
-const iconNameLogs = `remotely-save-lite-logs`
+const iconNameSyncWait = `yasp-sync-wait`
+const iconNameSyncRunning = `yasp-sync-running`
+const iconNameLogs = `yasp-logs`
 
 const getIconSvg = () => {
   const iconSvgSyncWait = createElement(RotateCcw)

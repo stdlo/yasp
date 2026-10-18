@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): no bookmarks-only sync, which the free engine skips
+// Changed for Yet Another Sync Plugin (2026): no bookmarks-only sync, which the free engine skips
 import { DEFAULT_DEBUG_FOLDER, type Entity } from './baseTypes'
 import { FakeFs } from './fsAll'
 

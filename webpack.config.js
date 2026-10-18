@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): only the Dropbox app key is defined
+// Changed for Yet Another Sync Plugin (2026): only the Dropbox app key is defined
 require('dotenv').config()
 const path = require('path')
 const webpack = require('webpack')

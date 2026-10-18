@@ -1,6 +1,6 @@
 {
-  "id": "remotely-save-lite",
-  "name": "Remotely Save Lite",
+  "id": "yasp",
+  "name": "Yet Another Sync Plugin",
   "version": "0.6.0",
   "minAppVersion": "0.13.21",
   "description": "Sync your vault with Dropbox. A free fork of Remotely Save 0.5.25.",

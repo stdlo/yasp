@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): only the Apache strings, no paid ones; a chosen language is honoured
+// Changed for Yet Another Sync Plugin (2026): only the Apache strings, no paid ones; a chosen language is honoured
 import Mustache from 'mustache'
 import { moment } from 'obsidian'
 

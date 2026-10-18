@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): no bookmarks-only listing, which the free engine skips
+// Changed for Yet Another Sync Plugin (2026): no bookmarks-only listing, which the free engine skips
 import type { ListedFiles, Vault } from 'obsidian'
 import type { Entity } from './baseTypes'
 

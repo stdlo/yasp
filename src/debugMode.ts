@@ -1,4 +1,4 @@
-// Changed for Remotely Save Lite (2026): sync plan type from the restored engine
+// Changed for Yet Another Sync Plugin (2026): sync plan type from the restored engine
 import type { Vault } from 'obsidian'
 
 import {

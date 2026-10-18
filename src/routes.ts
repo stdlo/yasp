@@ -177,7 +177,7 @@ const parentOf = (folder: string) => {
 }
 
 /**
- * The ownership file each remote keeps (`.remotely-save-lite/routes.json`):
+ * The ownership file each remote keeps (`.yasp/routes.json`):
  * the folders it owns, by its name, and when the table that wrote it changed.
  */
 export interface OwnershipFile {
@@ -186,7 +186,7 @@ export interface OwnershipFile {
   updatedAt: number
 }
 
-export const OWNERSHIP_FILE_KEY = '.remotely-save-lite/routes.json'
+export const OWNERSHIP_FILE_KEY = '.yasp/routes.json'
 
 /** The file this device writes to a remote, from its table. */
 export const ownershipFor = (

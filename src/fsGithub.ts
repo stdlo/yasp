@@ -58,7 +58,7 @@ export type GithubRequestFunc = (req: GithubRequest) => Promise<GithubResponse>
 
 const API = 'https://api.github.com'
 /** this plugin's own files in the repo: never vault files */
-const OWN_FOLDER = '.remotely-save-lite/'
+const OWN_FOLDER = '.yasp/'
 const TIMES_KEY = `${OWN_FOLDER}times.json`
 /** files over this are skipped with a notice */
 export const GITHUB_MAX_FILE_SIZE = 100 * 1024 * 1024
