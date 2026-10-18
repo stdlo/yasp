@@ -18,8 +18,10 @@ export const remoteMarks = (
   remotes: RemoteConfig[],
   results: Map<string, RemoteResult>,
 ) => {
-  // one remote reads as before: no marks
-  if (remotes.length < 2) {
+  // one remote reads as before while it's well: no marks, unless a run
+  // stopped or failed before it ran, which nothing else on the bar says
+  const unwell = [...results.values()].some((r) => r.status !== 'ok')
+  if (remotes.length < 2 && !unwell) {
     return { text: '', label: '' }
   }
   const text: string[] = []

@@ -385,6 +385,7 @@ interface World {
   settings: RemotelySavePluginSettings
   answers: (string | undefined)[]
   asked: number
+  notices: string[]
 }
 
 const world = (
@@ -397,6 +398,7 @@ const world = (
   settings,
   answers: [],
   asked: 0,
+  notices: [],
 })
 
 const sync = async (
@@ -414,6 +416,9 @@ const sync = async (
       (s.password ?? '') === '' ? plainEncrypt(fs) : prefixEncrypt(fs),
     getProtectError: () => 'too many changes',
     saveSettings: async () => {},
+    notice: (msg) => {
+      w.notices.push(msg)
+    },
     askHeld: async () => {
       w.asked += 1
       return w.answers.shift() as any
@@ -807,6 +812,33 @@ describe('Several remotes: the orchestrator', () => {
     assert.match(res.a, /^stopped/)
     assert.match(res.b, /^stopped/)
     assert.deepEqual(userKeys(w.fs.b), [])
+    assert.equal(w.notices.length, 1)
+  })
+
+  it('says a refused setup and a failed start in a notice, once', async () => {
+    // two remotes with one name are refused, with one remote left in view
+    const refused = world(
+      settingsWith(
+        [remote('a', { name: 'X' }), remote('b', { name: 'X' })],
+        [],
+      ),
+    )
+    const res = await sync(refused)
+    assert.match(res.a, /^stopped/)
+    assert.equal(refused.notices.length, 1)
+
+    const w = world(settingsWith([remote('a'), remote('b')], []))
+    const bFs = w.fs.b
+    w.fs = {
+      get a(): MemFs {
+        throw new Error('no token')
+      },
+      b: bFs,
+    } as any
+    const after = await sync(w)
+    assert.equal(after.a, 'failed: no token')
+    assert.equal(after.b, 'ok')
+    assert.deepEqual(w.notices, ['a: no token'])
   })
 
   it('adopts a newer ownership file before the runs', async () => {
@@ -1005,9 +1037,18 @@ describe('Several remotes: the orchestrator', () => {
       text: ' · Dropbox ✓ · GitHub ✗',
       label: '\nGitHub: offline',
     })
-    assert.deepEqual(remoteMarks(remotes.slice(0, 1), results), {
+    const well = new Map([['a', { status: 'ok' as const, at: 1 }]])
+    assert.deepEqual(remoteMarks(remotes.slice(0, 1), well), {
       text: '',
       label: '',
+    })
+    // one remote that stopped or failed shows its mark and the reason
+    const stopped = new Map([
+      ['a', { status: 'stopped' as const, at: 1, error: 'refused' }],
+    ])
+    assert.deepEqual(remoteMarks(remotes.slice(0, 1), stopped), {
+      text: ' · Dropbox ✗',
+      label: '\nDropbox: refused',
     })
   })
 })

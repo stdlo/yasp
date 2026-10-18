@@ -67,7 +67,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   new remote's id is never reused.
 - The status bar marks each remote's last run when there are several
   (`Dropbox ✓ · GitHub ✗`, the error on hover), names the remote syncing,
-  and opens the per-remote detail on a click.
+  and opens the per-remote detail on a click. A refused setup, a stopped
+  sync, or a remote that failed before its run is said in one notice and
+  marked on the bar even with one remote.
 - The routing's design (`docs/design.md`), a click-through list for trying
   several remotes and the GitHub remote on a scratch vault
   (`docs/click-through.md`), and a README section, "Several remotes", with

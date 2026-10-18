@@ -548,8 +548,13 @@ export const syncAllRemotes = async (
     for (const remote of remotes) {
       report(remote, { status: 'stopped', at: now(), error: refused.join(' ') })
     }
+    // with one remote there are no marks to read the reason from
+    deps.notice?.(refused.join(' '))
     return results
   }
+
+  // what failed before any run, said once at the end of the sync
+  const preRunFailures: string[] = []
 
   const runs: Run[] = []
   for (const remote of remotes) {
@@ -566,11 +571,9 @@ export const syncAllRemotes = async (
         profileID: profileIdOf(remote),
       })
     } catch (e: any) {
-      report(remote, {
-        status: 'failed',
-        at: now(),
-        error: e?.message ?? `${e}`,
-      })
+      const error = e?.message ?? `${e}`
+      report(remote, { status: 'failed', at: now(), error })
+      preRunFailures.push(`${remote.name}: ${error}`)
     }
   }
 
@@ -591,6 +594,7 @@ export const syncAllRemotes = async (
           error: ownership.stop,
         })
       }
+      deps.notice?.(ownership.stop)
       return results
     }
     held = await applyHoldRule(settings, runs, deps, dry)
@@ -604,11 +608,9 @@ export const syncAllRemotes = async (
   for (const run of runs) {
     const { remote } = run
     if (failed.has(remote.id)) {
-      report(remote, {
-        status: 'failed',
-        at: now(),
-        error: failed.get(remote.id),
-      })
+      const error = failed.get(remote.id)
+      report(remote, { status: 'failed', at: now(), error })
+      preRunFailures.push(`${remote.name}: ${error}`)
       continue
     }
     if (held.has(remote.id)) {
@@ -673,6 +675,9 @@ export const syncAllRemotes = async (
       at: now(),
       error,
     })
+  }
+  if (preRunFailures.length > 0) {
+    deps.notice?.(preRunFailures.join(' '))
   }
   return results
 }

@@ -169,7 +169,9 @@ never logged.
 With several remotes, one item: the last run's time and a mark per remote, `Synced 2m ago · Dropbox ✓ · GitHub ✓`;
 a failed or stopped remote shows `✗` and its error on hover, a held one `⏸`, a disabled one `–`; clicking shows the
 per-remote detail (last run, result, last error, a held question) as a notice. While a run is going: `Syncing
-GitHub…`. With one remote it reads as before.
+GitHub…`. With one remote it reads as before while the run is well; a refused setup, a contradicting ownership file,
+or a remote that failed before its run (no fs, a rename that failed) shows its mark and reason whatever the number of
+remotes, and the sync says it once in a notice.
 
 ## Tests the routing needs
 
