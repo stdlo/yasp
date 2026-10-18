@@ -312,6 +312,7 @@ export const getSyncPlanInplace = async (
   profiler: Profiler | undefined,
   settings: RemotelySavePluginSettings,
   triggerSource: SyncTriggerSourceType,
+  sharedFolders?: Set<string>,
 ) => {
   profiler?.addIndent()
   profiler?.insert('getSyncPlanInplace: enter')
@@ -322,7 +323,8 @@ export const getSyncPlanInplace = async (
   profiler?.insert('getSyncPlanInplace: finish sorting')
   profiler?.insertSize('sizeof sortedKeys', sortedKeys)
 
-  const keptFolder = new Set<string>()
+  // folders holding notes another remote's run owns are never emptied here
+  const keptFolder = new Set<string>(sharedFolders)
   const mayDeleteFolder = new Set<string>()
 
   for (let i = 0; i < sortedKeys.length; ++i) {
@@ -1635,6 +1637,7 @@ export async function syncer(
   callbackSyncProcess?: any,
   callbackConflictCopy?: ConflictCopyCallback,
   routeFilter?: RouteFilter,
+  sharedFolders?: Set<string>,
 ) {
   console.info(`starting sync.`)
   markIsSyncingFunc(true)
@@ -1726,6 +1729,7 @@ export async function syncer(
       profiler,
       settings,
       triggerSource,
+      sharedFolders,
     )
     console.debug(`mixedEntityMappings:`)
     console.debug(mixedEntityMappings) // for debugging

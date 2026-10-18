@@ -51,6 +51,9 @@ number.
   gives `tree[]` with `path`, `type`, `sha`, and `size`, and `truncated` false.]
 - [ ] 3.6 Add `areas/job → GitHub`, save, sync: `areas/job/f.md` goes to GitHub, `areas/e.md` stays on Dropbox, and
   no error mentions a missing folder.
+- [ ] 3.6a With `areas → Dropbox` and `areas/job → GitHub`, delete `areas/e.md` and sync, then restore it and delete
+  `areas/job/f.md` and sync (Obsidian's "Deleted files" setting at its default). Each time the other folder's notes
+  stay in the vault and on their remote.
 - [ ] 3.7 Switch GitHub off and edit `work/c.md`, sync: the edit goes nowhere (not to Dropbox), and the bar shows
   `GitHub –`. Switch it back on, sync: the edit reaches GitHub.
 

@@ -74,6 +74,26 @@ export const ancestorFolders = (table: RouteTable, target: string) => {
 }
 
 /**
+ * The folder keys a remote's run must never delete as empty: those above one
+ * of its own routes (in its run only as parents) and those above a route to
+ * another target (their subtree holds notes the run can't see). The engine
+ * seeds its kept-folder set with them.
+ */
+export const sharedFoldersFor = (table: RouteTable, target: string) => {
+  const res = ancestorFolders(table, target)
+  for (const route of table.routes) {
+    if (route.target === target) {
+      continue
+    }
+    const parts = route.folder.split('/')
+    for (let i = 1; i < parts.length; ++i) {
+      res.add(`${parts.slice(0, i).join('/')}/`)
+    }
+  }
+  return res
+}
+
+/**
  * The route filter for one remote's run: whether a key is in it. A key is
  * when the table routes it to this remote, and a folder key also when it
  * sits above one of this remote's routes.

@@ -77,7 +77,10 @@ run with:
   previous-sync records all agree on what's in the run (filtering the walks instead would trip the engine's
   "empty local list" hard reset when a routed folder is deleted). A path is in the run when the table routes it to
   this remote, **plus the ancestor folders of each of its routes** (`areas` for a route `areas/job`): folder entries
-  only, which the planner needs as parents and which create nothing on their own.
+  only, which the planner needs as parents and which create nothing on their own;
+- **a set of kept folders** (`sharedFoldersFor()` in `src/routes.ts`) seeded into the planner's `keptFolder`:
+  the ancestor folders of this remote's routes and of every other target's routes, so the empty-folder cleanup
+  (`clean_both`, the default) never deletes a folder whose subtree holds notes another run owns.
 
 Before the runs, in this order: routed-folder renames recorded since the last sync are finished (below); the
 ownership check; the hold rule (below). A dry run (the sync plan without the sync) writes nothing: it skips the
@@ -187,3 +190,6 @@ syncing one folder to two remotes on purpose (a backup); each could come later a
 8. **Removing a remote that owns folders is refused** until they're routed elsewhere, rather than asking where they
    go.
 9. **The per-remote detail is a notice** without counts.
+10. **The empty-folder cleanup keeps shared folders.** With `areas → A` and `areas/job → B`, neither run may delete
+    `areas/` as empty: A's run doesn't see `areas/job/`, and B's sees `areas/` only as an ancestor. The planner's
+    kept-folder set is seeded for each run (above).

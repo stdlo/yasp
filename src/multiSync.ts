@@ -38,6 +38,7 @@ import {
   renameRoute,
   routeFilterFor,
   routeOf,
+  sharedFoldersFor,
 } from './routes'
 import type { Profiler } from './profiler'
 import { syncer } from './sync'
@@ -602,6 +603,9 @@ export const syncAllRemotes = async (
       cb.callbackConflictCopy,
       isRouted(settings)
         ? routeFilterFor(settings.routes as RouteTable, remote.id)
+        : undefined,
+      isRouted(settings)
+        ? sharedFoldersFor(settings.routes as RouteTable, remote.id)
         : undefined,
     )
     fsEncrypt.closeResources()

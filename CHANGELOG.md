@@ -22,9 +22,11 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   percentage guard. A single-remote setup becomes the remote `dropbox` with
   the table `default → dropbox`, and its records move to that remote's
   profile (`remote-dropbox`), so it syncs exactly as before.
-- Two engine hooks, both unused by a single remote: a route filter applied
-  beside `ignorePaths`, and `FakeFs.finishSync()`, called once the plan has
-  run, for a remote that commits its writes in one batch.
+- Three engine hooks, all unused by a single remote: a route filter applied
+  beside `ignorePaths`; a set of folders the empty-folder cleanup keeps (those
+  above a route, so one remote's run never trashes the notes another remote
+  owns below them); and `FakeFs.finishSync()`, called once the plan has run,
+  for a remote that commits its writes in one batch.
 - Several remotes in one sync (`src/multiSync.ts`): under the one sync lock,
   each enabled remote runs in turn with its own settings, profile, and route
   filter, and one failing doesn't stop the next. Before the runs: routed

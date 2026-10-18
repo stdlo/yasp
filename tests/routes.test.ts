@@ -10,6 +10,7 @@ import {
   renameRoute,
   routeFilterFor,
   routeOf,
+  sharedFoldersFor,
 } from '../src/routes'
 
 // The route table's rules, as `docs/design.md` gives them.
@@ -60,6 +61,25 @@ describe('Routes: the table', () => {
     assert.equal(dropbox('areas/job/a.md'), false)
     assert.equal(dropbox('work/'), false)
     assert.equal(dropbox('a.md'), true)
+  })
+
+  it("shares the folders above any other target's route, and its own", () => {
+    // Dropbox's run holds `areas` but not what GitHub owns below it
+    assert.deepEqual([...sharedFoldersFor(TABLE, 'dropbox')], ['areas/'])
+    // GitHub's run holds `areas` only as an ancestor
+    assert.deepEqual([...sharedFoldersFor(TABLE, 'github')], ['areas/'])
+    assert.deepEqual(
+      [
+        ...sharedFoldersFor(
+          {
+            routes: [{ folder: 'a/b', target: LOCAL_ONLY }],
+            defaultTarget: 'x',
+          },
+          'x',
+        ),
+      ],
+      ['a/'],
+    )
   })
 
   it("keeps a disabled remote's folders from every other remote", () => {

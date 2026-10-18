@@ -45,6 +45,8 @@ class MemFs extends FakeFs {
   removes = 0
   renames: string[] = []
   failWalk = false
+  /** folders kept with nothing in them, as a vault keeps them */
+  emptyFolders = new Set<string>()
 
   put(key: string, text: string, mtime = 1_000_000) {
     this.files.set(key, { content: encode(text), mtime })
@@ -64,10 +66,13 @@ class MemFs extends FakeFs {
       throw Error('offline')
     }
     const folders = new Set<string>()
-    for (const key of this.files.keys()) {
+    for (const key of [...this.files.keys(), ...this.emptyFolders]) {
       for (const p of parentsOf(key)) {
         folders.add(p)
       }
+    }
+    for (const key of this.emptyFolders) {
+      folders.add(key)
     }
     const res: Entity[] = [...folders].map((key) => ({
       key,
@@ -140,8 +145,16 @@ class MemFs extends FakeFs {
   async rm(key: string): Promise<void> {
     if (!key.endsWith('/')) {
       this.removes += 1
+      this.files.delete(key)
+      return
     }
-    this.files.delete(key)
+    // removing a folder takes everything under it, as a real file system does
+    for (const k of [...this.files.keys(), ...this.emptyFolders]) {
+      if (k.startsWith(key)) {
+        this.files.delete(k)
+        this.emptyFolders.delete(k)
+      }
+    }
   }
 
   async checkConnect(): Promise<boolean> {
@@ -405,6 +418,48 @@ describe('Several remotes: the orchestrator', () => {
     w.fs.b.writes = 0
     assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
     assert.equal(w.fs.a.writes + w.fs.b.writes, 0)
+  })
+
+  describe('empty-folder cleanup across a two-level route', () => {
+    const twoLevels = () => {
+      const w = world(
+        settingsWith(
+          [remote('a'), remote('b')],
+          [
+            { folder: 'areas', target: 'a' },
+            { folder: 'areas/job', target: 'b' },
+          ],
+        ),
+      )
+      w.settings.howToCleanEmptyFolder = 'clean_both'
+      // each remote holds few files: let a last file go past the guard
+      w.settings.protectModifyPercentage = 100
+      w.local.put('n.md', 'n')
+      w.local.put('n2.md', 'n')
+      w.local.put('areas/x.md', 'x')
+      w.local.put('areas/job/j.md', 'j')
+      return w
+    }
+
+    it("doesn't trash the child's notes when the parent's last file goes", async () => {
+      const w = twoLevels()
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      w.local.files.delete('areas/x.md')
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(w.local.keys(), ['areas/job/j.md', 'n.md', 'n2.md'])
+      assert.deepEqual(userKeys(w.fs.b), ['areas/job/j.md'])
+    })
+
+    it("doesn't trash the parent's notes when the child's last file goes", async () => {
+      const w = twoLevels()
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      // the emptied folder stays in the vault, so its route isn't "gone"
+      w.local.files.delete('areas/job/j.md')
+      w.local.emptyFolders.add('areas/job/')
+      assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+      assert.deepEqual(w.local.keys(), ['areas/x.md', 'n.md', 'n2.md'])
+      assert.deepEqual(userKeys(w.fs.a), ['areas/x.md', 'n.md', 'n2.md'])
+    })
   })
 
   it('moves a note across a boundary', async () => {
