@@ -42,7 +42,6 @@ export interface RemoteConfig {
   name: string
   type: SUPPORTED_SERVICES_TYPE
   enabled: boolean
-  dropbox?: DropboxConfig
   github?: GithubConfig
   password?: string
   encryptionMethod?: CipherMethodType

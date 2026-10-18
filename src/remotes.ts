@@ -19,6 +19,12 @@ export const profileIdOf = (remote: RemoteConfig) => `remote-${remote.id}`
  * `LEGACY_PROFILE_ID` to the new profile.
  */
 export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
+  // the Dropbox credentials live in `settings.dropbox` only, where the OAuth
+  // flow and the settings page write them: a copy an earlier build kept on
+  // the remote goes
+  for (const remote of settings.remotes ?? []) {
+    delete (remote as { dropbox?: unknown }).dropbox
+  }
   if (settings.remotes !== undefined && settings.remotes.length > 0) {
     if (settings.routes === undefined) {
       settings.routes = { routes: [], defaultTarget: settings.remotes[0].id }
@@ -31,7 +37,6 @@ export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
       name: 'Dropbox',
       type: 'dropbox',
       enabled: true,
-      dropbox: settings.dropbox,
     },
   ]
   settings.routes = { routes: [], defaultTarget: 'dropbox' }
@@ -40,30 +45,16 @@ export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
 }
 
 /**
- * Keeps one object behind a Dropbox remote's credentials and the top-level
- * `dropbox`, which the OAuth flow and the settings page write, so a token
- * refreshed in a run is the one saved.
+ * The settings object one remote's run gets. A Dropbox remote's credentials
+ * are the top-level `dropbox` (the slice shares that object, so a token
+ * refreshed in a run is the one saved).
  */
-export const linkDropboxConfig = (settings: RemotelySavePluginSettings) => {
-  const remote = settings.remotes?.find((r) => r.type === 'dropbox')
-  if (remote === undefined) {
-    return
-  }
-  if (remote.dropbox === undefined) {
-    remote.dropbox = settings.dropbox
-  } else {
-    settings.dropbox = remote.dropbox
-  }
-}
-
-/** The settings object one remote's run gets. */
 export const settingsForRemote = (
   settings: RemotelySavePluginSettings,
   remote: RemoteConfig,
 ): RemotelySavePluginSettings => ({
   ...settings,
   serviceType: remote.type,
-  dropbox: remote.dropbox ?? settings.dropbox,
   password: remote.password ?? settings.password,
   encryptionMethod: remote.encryptionMethod ?? settings.encryptionMethod,
   concurrency: remote.concurrency ?? settings.concurrency,

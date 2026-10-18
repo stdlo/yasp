@@ -50,12 +50,7 @@ import {
   upsertPluginVersionByVault,
 } from './localdb'
 import { changeMobileStatusBar } from './misc'
-import {
-  LEGACY_PROFILE_ID,
-  linkDropboxConfig,
-  migrateToRemotes,
-  profileIdOf,
-} from './remotes'
+import { LEGACY_PROFILE_ID, migrateToRemotes, profileIdOf } from './remotes'
 import { DEFAULT_PROFILER_CONFIG, Profiler } from './profiler'
 import { RemotelySaveSettingTab } from './settings'
 import {
@@ -968,7 +963,6 @@ export default class RemotelySavePlugin extends Plugin {
     // A single-remote setup becomes the remote `dropbox`, `default → dropbox`;
     // its records move to that remote's profile once the database is open.
     migrateToRemotes(this.settings)
-    linkDropboxConfig(this.settings)
 
     await this.saveSettings()
   }

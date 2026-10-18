@@ -21,7 +21,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   encryption password, concurrency, sync direction, conflict choice, and
   percentage guard. A single-remote setup becomes the remote `dropbox` with
   the table `default → dropbox`, and its records move to that remote's
-  profile (`remote-dropbox`), so it syncs exactly as before.
+  profile (`remote-dropbox`), so it syncs exactly as before. The Dropbox
+  credentials stay in one place, the top-level `dropbox`, which Revoke,
+  Clear local, and a reconnect write; a Dropbox remote holds no copy.
 - Three engine hooks, all unused by a single remote: a route filter applied
   beside `ignorePaths`; a set of folders the empty-folder cleanup keeps (those
   above a route, so one remote's run never trashes the notes another remote

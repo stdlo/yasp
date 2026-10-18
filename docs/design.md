@@ -195,3 +195,6 @@ syncing one folder to two remotes on purpose (a backup); each could come later a
 10. **The empty-folder cleanup keeps shared folders.** With `areas → A` and `areas/job → B`, neither run may delete
     `areas/` as empty: A's run doesn't see `areas/job/`, and B's sees `areas/` only as an ancestor. The planner's
     kept-folder set is seeded for each run (above).
+11. **The Dropbox credentials have one home.** A Dropbox remote holds none of its own: its run reads the top-level
+    `dropbox`, which the OAuth flow, Revoke, Clear local, and the expiry write, so none of them can leave a second
+    copy behind. A copy an earlier build saved on the remote is deleted when the settings load.

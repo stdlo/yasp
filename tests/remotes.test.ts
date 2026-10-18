@@ -3,7 +3,6 @@ import type { RemotelySavePluginSettings } from '../src/baseTypes'
 import { type InternalDBs, moveProfileRecords } from '../src/localdb'
 import {
   LEGACY_PROFILE_ID,
-  linkDropboxConfig,
   migrateToRemotes,
   profileIdOf,
   refusedSettings,
@@ -60,7 +59,6 @@ describe('Remotes: the migration from one remote', () => {
   it('gives the migrated remote exactly the settings it had', () => {
     const s = single()
     migrateToRemotes(s)
-    linkDropboxConfig(s)
     const run = settingsForRemote(s, s.remotes![0])
     for (const k of [
       'serviceType',
@@ -76,6 +74,43 @@ describe('Remotes: the migration from one remote', () => {
     }
     // one object behind the credentials, so a refreshed token is saved
     assert.equal(run.dropbox, s.dropbox)
+    // and the remote holds none of its own
+    assert.equal('dropbox' in s.remotes![0], false)
+  })
+
+  it('keeps the Dropbox credentials in one place through a revoke and a reload', () => {
+    const s = single()
+    migrateToRemotes(s)
+    // Revoke swaps in a blank config, a reconnect writes the new one
+    s.dropbox = { accessToken: 'test-new', refreshToken: 'test-new-r' } as never
+    const reloaded = JSON.parse(JSON.stringify(s)) as typeof s
+    assert.equal(migrateToRemotes(reloaded), false)
+    const run = settingsForRemote(reloaded, reloaded.remotes![0])
+    assert.equal(run.dropbox.accessToken, 'test-new')
+    assert.equal(run.dropbox.refreshToken, 'test-new-r')
+  })
+
+  it('leaves no Dropbox credential after Clear local, even from an old save', () => {
+    // an earlier build saved a copy on the remote
+    const old = single()
+    old.remotes = [
+      {
+        id: 'dropbox',
+        name: 'Dropbox',
+        type: 'dropbox',
+        enabled: true,
+        dropbox: { accessToken: 'test-old', refreshToken: 'test-old-r' },
+      } as never,
+    ]
+    old.routes = { routes: [], defaultTarget: 'dropbox' }
+    migrateToRemotes(old)
+    // Clear local: the blank config replaces the credentials
+    old.dropbox = { accessToken: '', refreshToken: '' } as never
+    const saved = JSON.parse(JSON.stringify(old))
+    assert.equal('dropbox' in saved.remotes[0], false)
+    assert.equal(saved.dropbox.accessToken, '')
+    assert.equal(saved.dropbox.refreshToken, '')
+    assert.equal(JSON.stringify(saved).includes('test-'), false)
   })
 
   it("gives another remote its own settings, not the first one's", () => {
