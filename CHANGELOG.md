@@ -31,13 +31,14 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   for a remote that commits its writes in one batch.
 - Several remotes in one sync (`src/multiSync.ts`): under the one sync lock,
   each enabled remote runs in turn with its own settings, profile, and route
-  filter, and one failing doesn't stop the next. Before the runs: routed
-  folders renamed in Obsidian are renamed on their remote and in its
-  records; the remotes' ownership files (encrypted on an encrypted remote)
-  are compared, a newer one adopted
-  with a notice and a contradiction stopping the runs; and a routed folder
-  gone while the plugin wasn't watching holds its runs and asks once. A
-  rename the remote already made before the plugin stopped goes on to the
+  filter, and one failing doesn't stop the next. Before the runs: the
+  remotes' ownership files (encrypted on an encrypted remote) are compared, a
+  newer one adopted with a notice and a contradiction stopping the runs; a
+  routed folder gone while the plugin wasn't watching holds its runs and asks
+  once; this device's ownership files are written; and then routed folders
+  renamed in Obsidian are renamed on their remote and in its records, after
+  the ownership files so another device never sees the folder gone with no
+  claim on it. A rename the remote already made before the plugin stopped goes on to the
   records instead of failing that remote at every sync. A rename stays
   pending until every remote in the list has it (a switched-off remote gets it
   when it's on again), and one recorded while a sync runs isn't lost. A dry run writes

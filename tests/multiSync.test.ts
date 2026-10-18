@@ -49,6 +49,8 @@ class MemFs extends FakeFs {
   failWalk = false
   /** runs as a rename starts, before anything moves */
   onRename?: () => Promise<void>
+  /** runs once a rename has moved everything */
+  afterRename?: () => Promise<void>
   /** folders kept with nothing in them, as a vault keeps them */
   emptyFolders = new Set<string>()
 
@@ -145,6 +147,7 @@ class MemFs extends FakeFs {
         this.files.set(`${key2}${key.slice(key1.length)}`, file)
       }
     }
+    await this.afterRename?.()
   }
 
   async rm(key: string): Promise<void> {
@@ -603,16 +606,65 @@ describe('Several remotes: the orchestrator', () => {
     // the vault's `docs` is renamed while b's folder is being moved
     w.fs.b.onRename = async () => {
       w.fs.b.onRename = undefined
-      w.local.files.set('notes/d.md', w.local.files.get('docs/d.md')!)
-      w.local.files.delete('docs/d.md')
       recordFolderRename(w.settings, 'docs', 'notes', 3)
     }
-    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
-    // not lost: b's folder moved too, and nothing was deleted
-    assert.deepEqual(w.fs.b.renames, ['work/=>job/', 'docs/=>notes/'])
-    assert.deepEqual(userKeys(w.fs.b), ['job/w.md', 'notes/d.md'])
-    assert.deepEqual(w.local.keys(), ['job/w.md', 'notes/d.md'])
-    assert.deepEqual(w.settings.pendingRenames, [])
+    await sync(w)
+    // not lost: it waits for the next sync
+    assert.deepEqual(w.settings.pendingRenames, [
+      { from: 'docs', to: 'notes', done: [] },
+    ])
+  })
+
+  it('lets a second device sync between the routes file and the folder move', async () => {
+    const make = () => {
+      const s = settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      )
+      // a few files: let a deletion go past the guard, so one would show
+      s.protectModifyPercentage = 100
+      return s
+    }
+    const w1 = world(make())
+    w1.local.put('n.md', 'n')
+    for (const name of ['w1', 'w2', 'w3']) {
+      w1.local.put(`work/${name}.md`, name)
+    }
+    await sync(w1)
+    // a second device: the same remotes, its own vault and records
+    const w2 = world(make(), w1.fs)
+    for (const [key, file] of w1.local.files) {
+      w2.local.files.set(key, { ...file })
+    }
+    assert.deepEqual(await sync(w2), { a: 'ok', b: 'ok' })
+    // the first renames `work` to `job`
+    for (const name of ['w1', 'w2', 'w3']) {
+      w1.local.files.set(
+        `job/${name}.md`,
+        w1.local.files.get(`work/${name}.md`)!,
+      )
+      w1.local.files.delete(`work/${name}.md`)
+    }
+    recordFolderRename(w1.settings, 'work', 'job', 2)
+    // the second syncs just before the remote's folder moves, and just after
+    const between: Record<string, string>[] = []
+    const second = async () => {
+      between.push(await sync(w2))
+    }
+    w1.fs.b.onRename = async () => {
+      w1.fs.b.onRename = undefined
+      await second()
+    }
+    w1.fs.b.afterRename = async () => {
+      w1.fs.b.afterRename = undefined
+      await second()
+    }
+    assert.deepEqual(await sync(w1), { a: 'ok', b: 'ok' })
+    assert.equal(between.length, 2)
+    // nothing of the second device's was deleted
+    for (const name of ['w1', 'w2', 'w3']) {
+      assert.ok(w2.local.files.has(`work/${name}.md`), name)
+    }
   })
 
   it('finishes a rename the remote already made before a crash', async () => {

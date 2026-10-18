@@ -82,8 +82,11 @@ run with:
   the ancestor folders of this remote's routes and of every other target's routes, so the empty-folder cleanup
   (`clean_both`, the default) never deletes a folder whose subtree holds notes another run owns.
 
-Before the runs, in this order: routed-folder renames recorded since the last sync are finished (below); the
-ownership check; the hold rule (below). A dry run (the sync plan without the sync) writes nothing: it skips the
+Before the runs, in this order: the remotes' routes files are read and a newer table adopted; the hold rule
+(below); this device's routes files are written; then the routed-folder renames recorded since the last sync are
+finished (below). The routes files land before a folder moves on a remote, so another device syncing in between sees
+the folder released with a newer claim on its new name, never gone with no claim on it (a GitHub remote's rename
+commits the staged routes file with it). A dry run (the sync plan without the sync) writes nothing: it skips the
 renames, adopts no table and writes no routes file (a contradiction still stops it), and asks no question, leaving
 the held runs held. One remote failing (offline, a bad token) doesn't stop the others; each
 reports its own result. Local deletions keep going to the trash, the net under every case below.

@@ -336,17 +336,19 @@ export const deleteRemoteFolder = async (fs: FakeFs, folder: string) => {
 }
 
 /**
- * The ownership check: reads each remote's routes file, adopts a newer
- * table, and writes this device's ownership where a remote's differs.
- * Returns the reason to stop every run, when there is one. A dry run only
- * reads: it adopts nothing and writes nothing.
+ * The ownership sync, in two steps so the routes files land before any
+ * folder moves on a remote: this reads each remote's routes file and adopts
+ * a newer table, returning the reason to stop every run when there is one;
+ * its `write()` then writes this device's ownership where a remote's
+ * differs (call it after the hold rule, which may change the table). A dry
+ * run only reads: it adopts nothing and writes nothing.
  */
-const checkOwnership = async (
+const syncOwnership = async (
   settings: RemotelySavePluginSettings,
   runs: Run[],
   deps: MultiSyncDeps,
   dry: boolean,
-) => {
+): Promise<{ stop?: string; write: () => Promise<void> }> => {
   // an encrypted remote's routes file goes through its encryption, which
   // needs a listing first to know the remote's names
   const owning: { run: Run; io: FakeFs; close?: () => void }[] = []
@@ -385,11 +387,14 @@ const checkOwnership = async (
   }
   if (merged.kind === 'contradiction') {
     closeAll()
-    return `The folder "${merged.folder}" is owned by ${merged.owners.join(' and ')}. Fix the routes in the settings.`
+    return {
+      stop: `The folder "${merged.folder}" is owned by ${merged.owners.join(' and ')}. Fix the routes in the settings.`,
+      write: async () => {},
+    }
   }
   if (dry) {
     closeAll()
-    return undefined
+    return { write: async () => {} }
   }
   if (merged.kind === 'adopt') {
     settings.routes = merged.table
@@ -399,23 +404,25 @@ const checkOwnership = async (
       `Routes updated from another device: ${merged.changes.join('; ')}.`,
     )
   }
-  for (const { run, io } of owning) {
-    const mine = ownershipFor(
-      settings.routes!,
-      refs.find((r) => r.id === run.remote.id)!,
-      settings.routesUpdatedAt ?? 0,
-    )
-    const theirs = files.find((f) => f.remote === run.remote.name)
-    if (JSON.stringify(theirs) !== JSON.stringify(mine)) {
-      try {
-        await writeOwnership(io, mine)
-      } catch (e) {
-        // that remote's run reports the failure; the next sync writes again
+  const write = async () => {
+    for (const { run, io } of owning) {
+      const mine = ownershipFor(
+        settings.routes!,
+        refs.find((r) => r.id === run.remote.id)!,
+        settings.routesUpdatedAt ?? 0,
+      )
+      const theirs = files.find((f) => f.remote === run.remote.name)
+      if (JSON.stringify(theirs) !== JSON.stringify(mine)) {
+        try {
+          await writeOwnership(io, mine)
+        } catch (e) {
+          // that remote's run reports the failure; the next sync writes again
+        }
       }
     }
+    closeAll()
   }
-  closeAll()
-  return undefined
+  return { write }
 }
 
 /** The vault's folders (no trailing slash), from the local walk. */
@@ -573,19 +580,23 @@ export const syncAllRemotes = async (
   // files, no questions
   const dry = deps.triggerSource === 'dry'
   if (isRouted(settings)) {
-    if (!dry) {
-      await applyPendingRenames(settings, runs, deps, failed)
-    }
-    const stop = await checkOwnership(settings, runs, deps, dry)
-    if (stop !== undefined) {
+    // the routes files land before any folder moves: a device syncing in
+    // between then sees the folder released, never gone with no claim on it
+    const ownership = await syncOwnership(settings, runs, deps, dry)
+    if (ownership.stop !== undefined) {
       for (const run of runs) {
-        report(run.remote, { status: 'stopped', at: now(), error: stop })
+        report(run.remote, {
+          status: 'stopped',
+          at: now(),
+          error: ownership.stop,
+        })
       }
       return results
     }
     held = await applyHoldRule(settings, runs, deps, dry)
-    // an answer "renamed" records a rename: finish it before the runs
-    if (!dry && (settings.pendingRenames ?? []).length > 0) {
+    await ownership.write()
+    // includes a rename the hold rule's answer just recorded
+    if (!dry) {
       await applyPendingRenames(settings, runs, deps, failed)
     }
   }
