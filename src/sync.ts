@@ -1786,12 +1786,19 @@ export async function syncer(
         commitError = e
       }
       if (planFailed) {
-        if (commitFailed && planError instanceof Error) {
+        if (commitFailed) {
           const commitMessage =
             commitError instanceof Error
               ? commitError.message
               : `${commitError}`
-          planError.message = `${planError.message} (the commit also failed: ${commitMessage})`
+          if (planError instanceof Error) {
+            planError.message = `${planError.message} (the commit also failed: ${commitMessage})`
+          } else {
+            // something thrown that isn't an Error has no message to extend
+            throw Error(
+              `${planError} (the commit also failed: ${commitMessage})`,
+            )
+          }
         }
         throw planError
       }

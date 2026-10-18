@@ -149,7 +149,9 @@ never logged.
   message is appended to it), and the run's result always says how many changes weren't committed. Git keeps no empty folders: `mkdir` and a folder's `rm` do nothing.
 - **A moved branch** (another device committed first, the ref update refused): the tree is rebuilt on the new head;
   only paths that changed there are dropped from this commit, and only those roll back (below). Three tries, then
-  the run fails and everything rolls back.
+  the run fails and everything rolls back. When nothing is left staged after a retry (all dropped, or only
+  fallback times), the head's own times stand and no commit is made, since it would be empty. A commit is titled
+  from what is staged, the routes file included: only fallback times alone read "Record file times".
 - **Rolling back:** the engine writes a previous-sync record as soon as `writeFile` returns and clears it after `rm`,
   before the commit. So the GitHub fs reports the keys it couldn't commit (all of them when the commit fails), and the
   orchestrator puts their records under that profile back to what they were before the run: the next run sees them

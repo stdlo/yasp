@@ -12,6 +12,7 @@ import {
 
 const TOKEN = 'test-token-not-real'
 const TIMES = '.remotely-save-lite/times.json'
+const ROUTES = '.remotely-save-lite/routes.json'
 
 const enc = (text: string) => Buffer.from(text).toString('base64')
 const dec = (b64: string) => Buffer.from(b64, 'base64').toString()
@@ -25,6 +26,7 @@ interface Commit {
   tree: string
   parents: string[]
   date: string
+  message: string
 }
 
 class MockRepo {
@@ -59,9 +61,9 @@ class MockRepo {
     this.trees.set(sha, map)
     return sha
   }
-  commit(tree: string, parents: string[], date: string) {
+  commit(tree: string, parents: string[], date: string, message = '') {
     const sha = `commit-${++this.n}`
-    this.commits.set(sha, { tree, parents, date })
+    this.commits.set(sha, { tree, parents, date, message })
     return sha
   }
   files(sha = this.head) {
@@ -140,7 +142,14 @@ class MockRepo {
     }
     if (req.method === 'POST' && path === '/git/commits') {
       return ok(
-        { sha: this.commit(body.tree, body.parents, '2026-02-01T00:00:00Z') },
+        {
+          sha: this.commit(
+            body.tree,
+            body.parents,
+            '2026-02-01T00:00:00Z',
+            body.message,
+          ),
+        },
         201,
       )
     }
@@ -386,6 +395,40 @@ describe('GitHub remote', () => {
       0,
     )
     assert.equal(repo.commits.size, before + 1)
+  })
+
+  it('titles a commit from what is staged', async () => {
+    const repo = new MockRepo({ 'work/a.md': 'a' })
+    repo.push({ [TIMES]: timesFile({}, repo) }, '2026-01-02T00:00:00Z')
+    const message = () => repo.commits.get(repo.head)!.message
+    const fs = fsFor(repo)
+    await fs.walk()
+    // the routes file alone is a change, not a record of times
+    await fs.writeFile(ROUTES, buf('{}'), 1, 1)
+    await fs.finishSync()
+    assert.equal(message(), 'Sync from laptop, 1 changes')
+    // fallback times alone
+    const next = fsFor(repo)
+    repo.push({ 'work/a.md': 'edited on the web' }, '2026-01-05T00:00:00Z')
+    await next.walk()
+    await next.finishSync()
+    assert.equal(message(), 'Record file times from laptop')
+  })
+
+  it("makes no empty commit when a moved branch leaves only the head's times", async () => {
+    const repo = new MockRepo({ 'work/a.md': 'a' })
+    repo.push({ [TIMES]: timesFile({}, repo) }, '2026-01-02T00:00:00Z')
+    const fs = fsFor(repo)
+    await fs.walk()
+    let moved = ''
+    repo.beforePatch = () => {
+      repo.push({ 'work/other.md': 'o' }, '2026-01-03T00:00:00Z')
+      moved = repo.head
+    }
+    await fs.finishSync()
+    // nothing of ours was staged: the other device's head stands
+    assert.equal(repo.head, moved)
+    assert.deepEqual(fs.uncommittedKeys(), [])
   })
 
   it('renames a folder in one commit', async () => {

@@ -411,6 +411,7 @@ const world = (
 const sync = async (
   w: World,
   triggerSource: MultiSyncDeps['triggerSource'] = 'manual',
+  extra: Partial<MultiSyncDeps> = {},
 ) => {
   const deps: MultiSyncDeps = {
     fsLocal: w.local,
@@ -430,6 +431,7 @@ const sync = async (
       w.asked += 1
       return w.answers.shift() as any
     },
+    ...extra,
   }
   const res = await syncAllRemotes(w.settings, deps)
   return Object.fromEntries(
@@ -1036,6 +1038,34 @@ describe('Several remotes: the orchestrator', () => {
     // and a commit that fails after a clean plan still says so
     w.settings.protectModifyPercentage = 100
     assert.match((await sync(w)).b, /commit failed/)
+  })
+
+  it('keeps the commit message when the plan threw something that is not an Error', async () => {
+    const flaky = new FlakyCommitFs()
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'work', target: 'b' }],
+      ),
+      { a: new MemFs(), b: flaky },
+    )
+    for (const name of ['w1', 'w2', 'w3', 'w4']) {
+      w.local.put(`work/${name}.md`, name)
+    }
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    for (const name of ['w1', 'w2', 'w3', 'w4']) {
+      w.local.files.delete(`work/${name}.md`)
+    }
+    w.local.emptyFolders.add('work/')
+    flaky.failCommit = true
+    // the guard's own message function throws a string
+    const res = await sync(w, 'manual', {
+      getProtectError: () => {
+        throw 'the guard stopped'
+      },
+    })
+    assert.match(res.b, /the guard stopped/)
+    assert.match(res.b, /commit failed/)
   })
 
   it('keeps both versions after a rolled-back commit and a remote edit', async () => {

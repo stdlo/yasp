@@ -505,9 +505,9 @@ export class FakeFsGithub extends FakeFs {
       base_tree: baseTree,
       tree: entries,
     })
-    const changes = [...this.staged.keys()].filter(
-      (k) => !k.startsWith(OWN_FOLDER),
-    ).length
+    // titled from what is staged: the plugin's own files (the routes file)
+    // count, so only fallback times alone read as a record of times
+    const changes = this.staged.size
     const commit = await this.call<GithubCommit>('POST', '/git/commits', {
       message:
         changes === 0
@@ -550,6 +550,13 @@ export class FakeFsGithub extends FakeFs {
       let headTimes = this.times
       const dropped: string[] = []
       for (let attempt = 0; attempt < 3; ++attempt) {
+        // on a moved branch, nothing left staged means the head's own times
+        // stand and a commit would be empty
+        if (attempt > 0 && this.staged.size === 0) {
+          this.uncommitted = dropped
+          this.headSha = undefined
+          return
+        }
         if (
           await this.commitOnce(head, baseTree, this.mergedTimes(headTimes))
         ) {
