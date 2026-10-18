@@ -6,17 +6,24 @@ import type {
 } from '../src/baseTypes'
 import { FakeFs } from '../src/fsAll'
 import type { FakeFsEncrypt } from '../src/fsEncrypt'
-import type { InternalDBs } from '../src/localdb'
+import {
+  type InternalDBs,
+  getAllPrevSyncRecordsByVaultAndProfile,
+} from '../src/localdb'
 import {
   type MultiSyncDeps,
+  defaultChange,
   deleteRemoteFolder,
+  deleteRemoteUnrouted,
   forgetFolder,
   forgetRemote,
+  forgetUnrouted,
   hasRecords,
   recordFolderRename,
   routeChanges,
   syncAllRemotes,
 } from '../src/multiSync'
+import { profileIdOf } from '../src/remotes'
 import { remoteMarks } from '../src/statusBar'
 import { OWNERSHIP_FILE_KEY } from '../src/routes'
 
@@ -1022,6 +1029,39 @@ describe('Several remotes: the orchestrator', () => {
     assert.deepEqual(userKeys(w.fs.a), ['n.md'])
     assert.deepEqual(userKeys(w.fs.b), ['work/w.md'])
     assert.deepEqual(w.local.keys(), ['n.md', 'work/w.md'])
+  })
+
+  it('moves what no route names when the default row changes', async () => {
+    const w = world(
+      settingsWith(
+        [remote('a'), remote('b')],
+        [{ folder: 'areas', target: 'a' }],
+      ),
+    )
+    w.local.put('n.md', 'n')
+    w.local.put('work/w.md', 'w')
+    w.local.put('areas/x.md', 'x')
+    await sync(w)
+    assert.deepEqual(userKeys(w.fs.a), ['areas/x.md', 'n.md', 'work/w.md'])
+    const before = w.settings.routes!
+    const after = { ...before, defaultTarget: 'b' }
+    assert.deepEqual(routeChanges(before, after), [])
+    assert.deepEqual(defaultChange(before, after), { from: 'a', to: 'b' })
+    assert.equal(defaultChange(before, before), undefined)
+    w.settings.routes = after
+    w.settings.routesUpdatedAt = 2
+    const a = w.settings.remotes![0]
+    await forgetUnrouted(w.db, VAULT, a, before, after)
+    await deleteRemoteUnrouted(w.fs.a, before, after)
+    // a keeps its records of the folder it still owns, and nothing else
+    const keys = (
+      await getAllPrevSyncRecordsByVaultAndProfile(w.db, VAULT, profileIdOf(a))
+    ).map((r) => r.key)
+    assert.deepEqual(keys.sort(), ['areas/', 'areas/x.md'])
+    assert.deepEqual(await sync(w), { a: 'ok', b: 'ok' })
+    assert.deepEqual(userKeys(w.fs.a), ['areas/x.md'])
+    assert.deepEqual(userKeys(w.fs.b), ['n.md', 'work/w.md'])
+    assert.deepEqual(w.local.keys(), ['areas/x.md', 'n.md', 'work/w.md'])
   })
 
   it('marks each remote in the status bar', () => {

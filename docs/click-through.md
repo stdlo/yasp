@@ -73,6 +73,10 @@ number.
 - [ ] 4.5 Change the route `work → GitHub` to `work → Dropbox`, save. It offers to delete GitHub's copies; choose
   "Keep them". Sync: `work` reaches Dropbox, GitHub keeps its old copies untouched. Route it back to GitHub and
   answer "Delete from GitHub" this time; Dropbox's copies stay, stale, until you delete them yourself.
+- [ ] 4.5a Change the default row from Dropbox to GitHub and save: it offers to delete Dropbox's copies of everything
+  outside the routed folders; choose "Keep them". Sync: the unrouted notes (`g.md`, `areas/e.md`) reach GitHub, nothing
+  in the vault is deleted, and Dropbox still holds its old copies. Set the default back and answer "Delete from
+  GitHub": its copies of those notes go, the routed folders stay.
 
 - [ ] 4.6 After GitHub has synced, change its folder (or repo or branch) and press "Save": it asks first, then
   forgets the old records. Sync: nothing in the vault is deleted, and the new place gets the routed notes. "Remove"

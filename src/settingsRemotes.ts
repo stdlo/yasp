@@ -8,12 +8,16 @@ import cloneDeep from 'lodash/cloneDeep'
 import { nanoid } from 'nanoid'
 import { type App, Notice, Setting } from 'obsidian'
 import type { RemoteConfig, RemotelySavePluginSettings } from './baseTypes'
+import type { FakeFs } from './fsAll'
 import { getClient } from './fsGetter'
 import type RemotelySavePlugin from './main' // unavoidable
 import {
+  defaultChange,
   deleteRemoteFolder,
+  deleteRemoteUnrouted,
   forgetFolder,
   forgetRemote,
+  forgetUnrouted,
   hasRecords,
   routeChanges,
 } from './multiSync'
@@ -54,6 +58,29 @@ const newGithubRemote = (remotes: RemoteConfig[]): RemoteConfig => {
   }
 }
 
+/** Asks whether to delete what no longer syncs with `old`, and does it. */
+const offerDelete = async (
+  app: App,
+  plugin: RemotelySavePlugin,
+  old: RemoteConfig,
+  what: string,
+  remove: (fs: FakeFs) => Promise<void>,
+) => {
+  if (!(await askDeleteOldCopies(app, what, old.name))) {
+    return
+  }
+  if ((settingsForRemote(plugin.settings, old).password ?? '') !== '') {
+    new Notice(`${old.name} is encrypted: delete ${what} there yourself.`)
+    return
+  }
+  try {
+    await remove(remoteFs(plugin, old))
+    new Notice(`Deleted ${what} from ${old.name}.`)
+  } catch (e: any) {
+    new Notice(`${old.name}: ${e?.message ?? e}`)
+  }
+}
+
 /** Saves a table change: refused setups shown, route changes followed up. */
 const saveTable = async (
   app: App,
@@ -77,7 +104,9 @@ const saveTable = async (
     })
     return false
   }
-  const changes = routeChanges(plugin.settings.routes!, draft)
+  const before = plugin.settings.routes!
+  const changes = routeChanges(before, draft)
+  const defaultMoved = defaultChange(before, draft)
   plugin.settings.routes = draft
   plugin.settings.routesUpdatedAt = Date.now()
   await plugin.saveSettings()
@@ -88,20 +117,31 @@ const saveTable = async (
       continue
     }
     await forgetFolder(plugin.db, plugin.vaultRandomID, old, change.folder)
-    if (await askDeleteOldCopies(app, change.folder, old.name)) {
-      if ((settingsForRemote(plugin.settings, old).password ?? '') !== '') {
-        new Notice(
-          `${old.name} is encrypted: delete "${change.folder}" there yourself.`,
-        )
-        continue
-      }
-      try {
-        await deleteRemoteFolder(remoteFs(plugin, old), change.folder)
-        new Notice(`Deleted "${change.folder}" from ${old.name}.`)
-      } catch (e: any) {
-        new Notice(`${old.name}: ${e?.message ?? e}`)
-      }
-    }
+    await offerDelete(
+      app,
+      plugin,
+      old,
+      `"${change.folder}"`,
+      async (fs) => await deleteRemoteFolder(fs, change.folder),
+    )
+  }
+  // the default row moved: what no route names changes remote too
+  const oldDefault = remotes.find((r) => r.id === defaultMoved?.from)
+  if (oldDefault !== undefined) {
+    await forgetUnrouted(
+      plugin.db,
+      plugin.vaultRandomID,
+      oldDefault,
+      before,
+      draft,
+    )
+    await offerDelete(
+      app,
+      plugin,
+      oldDefault,
+      'Everything outside the routed folders',
+      async (fs) => await deleteRemoteUnrouted(fs, before, draft),
+    )
   }
   return true
 }

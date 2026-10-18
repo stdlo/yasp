@@ -61,7 +61,7 @@ class RouteChangeModal extends Modal {
 
   constructor(
     app: App,
-    readonly folder: string,
+    readonly what: string,
     readonly oldRemote: string,
     readonly done: (deleteThem: boolean) => void,
   ) {
@@ -70,7 +70,7 @@ class RouteChangeModal extends Modal {
 
   onOpen() {
     this.contentEl.createEl('p', {
-      text: `"${this.folder}" no longer syncs with ${this.oldRemote}. Delete its copies there? Otherwise they stay, no longer updated.`,
+      text: `${this.what} no longer syncs with ${this.oldRemote}. Delete its copies there? Otherwise they stay, no longer updated.`,
     })
     new Setting(this.contentEl)
       .addButton((b) =>
@@ -93,13 +93,10 @@ class RouteChangeModal extends Modal {
   }
 }
 
-export const askDeleteOldCopies = (
-  app: App,
-  folder: string,
-  oldRemote: string,
-) =>
+/** `what` is already phrased and quoted: `"work"`, or a description. */
+export const askDeleteOldCopies = (app: App, what: string, oldRemote: string) =>
   new Promise<boolean>((resolve) => {
-    new RouteChangeModal(app, folder, oldRemote, resolve).open()
+    new RouteChangeModal(app, what, oldRemote, resolve).open()
   })
 
 export const askHeldQuestion = (app: App, q: HeldQuestion) =>

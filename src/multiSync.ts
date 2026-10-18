@@ -318,11 +318,66 @@ export const forgetRemote = async (
 ) =>
   await clearProfileRecords(db, vaultRandomID, profileIdOf(remote), () => true)
 
+/**
+ * A change of the default row moves everything no route names (under either
+ * table) from the old default to the new one. Undefined when it didn't
+ * change.
+ */
+export const defaultChange = (before: RouteTable, after: RouteTable) =>
+  before.defaultTarget === after.defaultTarget
+    ? undefined
+    : { from: before.defaultTarget, to: after.defaultTarget }
+
+/**
+ * Whether a key is one the default row owns across a table change: under no
+ * route of either table, and not a folder above one (which a route's own
+ * notes sit under).
+ */
+const isUnrouted = (before: RouteTable, after: RouteTable) => {
+  const folders = [...before.routes, ...after.routes].map((r) => r.folder)
+  return (key: string) => {
+    const path = key.replace(/\/+$/, '')
+    return (
+      !path.startsWith('.remotely-save-lite/') &&
+      !folders.some((f) => isUnder(path, f)) &&
+      !(key.endsWith('/') && folders.some((f) => isUnder(f, path)))
+    )
+  }
+}
+
+/** After a default row change, the old default's records of what it owned go. */
+export const forgetUnrouted = async (
+  db: InternalDBs,
+  vaultRandomID: string,
+  remote: RemoteConfig,
+  before: RouteTable,
+  after: RouteTable,
+) =>
+  await clearProfileRecords(
+    db,
+    vaultRandomID,
+    profileIdOf(remote),
+    isUnrouted(before, after),
+  )
+
+/** Deletes what the default row owned on the old default, after its change. */
+export const deleteRemoteUnrouted = async (
+  fs: FakeFs,
+  before: RouteTable,
+  after: RouteTable,
+) => await deleteRemoteWhere(fs, isUnrouted(before, after))
+
 /** Deletes a folder's copies on a remote, after a route change. */
-export const deleteRemoteFolder = async (fs: FakeFs, folder: string) => {
+export const deleteRemoteFolder = async (fs: FakeFs, folder: string) =>
+  await deleteRemoteWhere(fs, (k) => isUnder(k.replace(/\/+$/, ''), folder))
+
+const deleteRemoteWhere = async (
+  fs: FakeFs,
+  match: (key: string) => boolean,
+) => {
   const keys = (await fs.walk())
     .map((e) => e.key!)
-    .filter((k) => isUnder(k.replace(/\/+$/, ''), folder))
+    .filter(match)
     // files first, then folders, deepest first
     .sort(
       (a, b) =>

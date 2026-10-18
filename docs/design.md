@@ -52,7 +52,8 @@ remote ("Dropbox: everything except `work`. GitHub: only `work`."), generated fr
   are routed elsewhere first.
 - **A route changed** (a folder moved from one remote to another in the settings): the old profile's records under
   that folder are cleared, and the plugin offers to delete the old remote's copies (otherwise they stay there,
-  stale).
+  stale). Changing the default row is a route change for everything no route names: the old default's records of
+  those paths are cleared and the same offer is made, for everything outside the routed folders.
 - The config folder (`.obsidian/`) isn't routed; syncing it is off by default and may be on for one remote only. (The
   plugin's own folder, with every credential, is never synced: the config walk already skips it.)
 - With one remote and no routes the routing is off: no route filter and no routes file, so a setup migrated from the
