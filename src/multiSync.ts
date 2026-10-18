@@ -25,6 +25,7 @@ import {
   profileIdOf,
   refusedSettings,
   remoteRefs,
+  routeTableOf,
   settingsForRemote,
 } from './remotes'
 import {
@@ -43,15 +44,6 @@ import {
 } from './routes'
 import type { Profiler } from './profiler'
 import { syncer } from './sync'
-
-/** A remote that stages its writes and can say which it didn't commit. */
-export interface StagingFs {
-  /** the keys written or removed in the run and not committed */
-  uncommittedKeys(): string[]
-}
-
-const isStaging = (fs: FakeFs): fs is FakeFs & StagingFs =>
-  typeof (fs as any).uncommittedKeys === 'function'
 
 export type RemoteStatus = 'ok' | 'failed' | 'held' | 'stopped' | 'disabled'
 
@@ -83,7 +75,11 @@ export interface MultiSyncDeps {
     fs: FakeFs,
     settings: RemotelySavePluginSettings,
   ) => FakeFsEncrypt
-  getProtectError: any
+  getProtectError: (
+    protectModifyPercentage: number,
+    realModifyDeleteCount: number,
+    allFilesCount: number,
+  ) => string
   profiler?: Profiler
   saveSettings: () => Promise<void>
   notice?: (msg: string) => void
@@ -94,13 +90,19 @@ export interface MultiSyncDeps {
   runCallbacks?: {
     notifyFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>
     errNotifyFunc?: (s: SyncTriggerSourceType, error: Error) => Promise<any>
-    ribboonFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>
+    ribbonFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>
     statusBarFunc?: (
       s: SyncTriggerSourceType,
       step: number,
       everythingOk: boolean,
     ) => any
-    callbackSyncProcess?: any
+    callbackSyncProcess?: (
+      realCounter: number,
+      realTotalCount: number,
+      pathName: string,
+      decision: string,
+    ) => Promise<void>
+
     callbackConflictCopy?: (key: string, copyKey: string) => void
   }
   now?: () => number
@@ -430,7 +432,7 @@ const syncOwnership = async (
   }
   const refs = remoteRefs(settings)
   const merged = mergeOwnership(
-    settings.routes!,
+    routeTableOf(settings),
     settings.routesUpdatedAt ?? 0,
     refs,
     files,
@@ -462,7 +464,7 @@ const syncOwnership = async (
   const write = async () => {
     for (const { run, io } of owning) {
       const mine = ownershipFor(
-        settings.routes!,
+        routeTableOf(settings),
         refs.find((r) => r.id === run.remote.id)!,
         settings.routesUpdatedAt ?? 0,
       )
@@ -518,7 +520,11 @@ const applyHoldRule = async (
   }
   const local = localFoldersOf(await deps.fsLocal.walk())
   const held = new Map<string, HeldQuestion>()
-  for (const q of heldQuestions(settings.routes!, local, recordsByTarget)) {
+  for (const q of heldQuestions(
+    routeTableOf(settings),
+    local,
+    recordsByTarget,
+  )) {
     // a dry run asks nothing: the question waits for a real sync
     const answer = dry ? undefined : await deps.askHeld?.(q)
     if (answer === 'rename' && q.appeared !== undefined) {
@@ -548,10 +554,7 @@ const rollBack = async (
   before: Map<string, Entity>,
   deps: MultiSyncDeps,
 ) => {
-  if (!isStaging(run.fs)) {
-    return 0
-  }
-  const keys = run.fs.uncommittedKeys()
+  const keys = run.fs.uncommittedKeys?.() ?? []
   for (const key of keys) {
     // the base the run stored is of a copy that never reached the remote: a
     // later conflict makes a copy rather than merging from it
@@ -708,15 +711,15 @@ export const syncAllRemotes = async (
         error = e?.message ?? 'error while sync'
         await cb.errNotifyFunc?.(s, e)
       },
-      cb.ribboonFunc,
+      cb.ribbonFunc,
       cb.statusBarFunc,
       cb.callbackSyncProcess,
       cb.callbackConflictCopy,
       isRouted(settings)
-        ? routeFilterFor(settings.routes as RouteTable, remote.id)
+        ? routeFilterFor(routeTableOf(settings), remote.id)
         : undefined,
       isRouted(settings)
-        ? sharedFoldersFor(settings.routes as RouteTable, remote.id)
+        ? sharedFoldersFor(routeTableOf(settings), remote.id)
         : undefined,
     )
     fsEncrypt.closeResources()

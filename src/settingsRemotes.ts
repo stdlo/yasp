@@ -6,7 +6,7 @@
  */
 import cloneDeep from 'lodash/cloneDeep'
 import { nanoid } from 'nanoid'
-import { type App, Notice, Setting } from 'obsidian'
+import { type App, type DropdownComponent, Notice, Setting } from 'obsidian'
 import type { RemoteConfig, RemotelySavePluginSettings } from './baseTypes'
 import type { FakeFs } from './fsAll'
 import { getClient } from './fsGetter'
@@ -21,7 +21,7 @@ import {
   hasRecords,
   routeChanges,
 } from './multiSync'
-import { refusedSettings, settingsForRemote } from './remotes'
+import { refusedSettings, routeTableOf, settingsForRemote } from './remotes'
 import {
   LOCAL_ONLY,
   type RouteTable,
@@ -104,7 +104,7 @@ const saveTable = async (
     })
     return false
   }
-  const before = plugin.settings.routes!
+  const before = routeTableOf(plugin.settings)
   const changes = routeChanges(before, draft)
   const defaultMoved = defaultChange(before, draft)
   plugin.settings.routes = draft
@@ -159,7 +159,7 @@ export const renderRemotesSettings = (
   })
   const settings = plugin.settings
   const remotes = settings.remotes ?? []
-  const table = settings.routes ?? { routes: [] }
+  const table = routeTableOf(settings)
 
   for (const remote of remotes) {
     const s = new Setting(div)
@@ -205,7 +205,7 @@ export const renderRemotesSettings = (
     ...remotes.map((r): [string, string] => [r.id, r.name]),
     [LOCAL_ONLY, 'Local only'],
   ]
-  const addTargets = (dropdown: any) => {
+  const addTargets = (dropdown: DropdownComponent) => {
     for (const [id, name] of targets) {
       dropdown.addOption(id, name)
     }

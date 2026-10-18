@@ -66,6 +66,11 @@ export abstract class FakeFs {
    * stages its writes (GitHub) commits them here.
    */
   finishSync?(): Promise<void>
+  /**
+   * Also for a remote that stages its writes: the keys written or removed
+   * in the run and not committed, so the caller can roll their records back.
+   */
+  uncommittedKeys?(): string[]
   abstract getUserDisplayName(): Promise<string>
   abstract revokeAuth(): Promise<any>
   abstract allowEmptyFile(): boolean

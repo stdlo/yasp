@@ -25,6 +25,34 @@ export interface GithubResponse {
   json: any
 }
 
+// The parts of GitHub's replies this file reads (docs.github.com/en/rest/git,
+// not fetched).
+interface GithubRef {
+  object: { sha: string }
+}
+interface GithubCommit {
+  sha: string
+  tree: { sha: string }
+}
+interface GithubTreeItem {
+  path: string
+  type: 'blob' | 'tree' | 'commit'
+  sha: string
+  size?: number
+}
+interface GithubTree {
+  sha: string
+  truncated?: boolean
+  tree: GithubTreeItem[]
+}
+interface GithubBlob {
+  sha: string
+  content: string
+}
+interface GithubCommitListItem {
+  commit?: { committer?: { date?: string } }
+}
+
 /** Sends one request and returns its reply, whatever its status. */
 export type GithubRequestFunc = (req: GithubRequest) => Promise<GithubResponse>
 
@@ -96,11 +124,12 @@ export class FakeFsGithub extends FakeFs {
     return `${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`
   }
 
-  private async call(
+  /** `T` is the reply's shape, as far as this file reads it. */
+  private async call<T = unknown>(
     method: GithubRequest['method'],
     path: string,
-    body?: any,
-  ) {
+    body?: unknown,
+  ): Promise<T> {
     const res = await this.request({
       url: path.startsWith('https://') ? path : this.repoUrl(path),
       method,
@@ -114,7 +143,7 @@ export class FakeFsGithub extends FakeFs {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     if (res.status >= 200 && res.status < 300) {
-      return res.json
+      return res.json as T
     }
     // docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
     // (not fetched): a 403 or 429 with x-ratelimit-remaining 0 is the limit
@@ -145,11 +174,11 @@ export class FakeFsGithub extends FakeFs {
 
   /** docs.github.com/en/rest/git/refs (not fetched): `object.sha` */
   private async getHead() {
-    const ref = await this.call(
+    const ref = await this.call<GithubRef>(
       'GET',
       `/git/ref/heads/${encodeURIComponent(this.config.branch)}`,
     )
-    return ref.object.sha as string
+    return ref.object.sha
   }
 
   /**
@@ -158,19 +187,22 @@ export class FakeFsGithub extends FakeFs {
    * `tree[]` of `{ path, type: 'blob' | 'tree', sha, size }` and `truncated`.
    */
   private async readTree(head: string) {
-    const commit = await this.call('GET', `/git/commits/${head}`)
-    const treeSha = commit.tree.sha as string
-    const tree = await this.call('GET', `/git/trees/${treeSha}?recursive=1`)
+    const commit = await this.call<GithubCommit>('GET', `/git/commits/${head}`)
+    const treeSha = commit.tree.sha
+    const tree = await this.call<GithubTree>(
+      'GET',
+      `/git/trees/${treeSha}?recursive=1`,
+    )
     if (tree.truncated) {
       throw Error('GitHub: the repo is too large to list in one request.')
     }
     const blobs = new Map<string, { sha: string; size: number }>()
     const folders = new Set<string>()
-    for (const item of tree.tree as any[]) {
-      if (!(item.path as string).startsWith(this.prefix)) {
+    for (const item of tree.tree) {
+      if (!item.path.startsWith(this.prefix)) {
         continue
       }
-      const path = (item.path as string).slice(this.prefix.length)
+      const path = item.path.slice(this.prefix.length)
       if (item.type === 'blob') {
         blobs.set(path, { sha: item.sha, size: item.size ?? 0 })
       } else if (item.type === 'tree' && path !== '') {
@@ -182,8 +214,8 @@ export class FakeFsGithub extends FakeFs {
 
   /** docs.github.com/en/rest/git/blobs (not fetched): base64 `content` */
   private async readBlob(sha: string) {
-    const blob = await this.call('GET', `/git/blobs/${sha}`)
-    return fromBase64(blob.content as string)
+    const blob = await this.call<GithubBlob>('GET', `/git/blobs/${sha}`)
+    return fromBase64(blob.content)
   }
 
   private async readTimes(blobs: Map<string, { sha: string }>) {
@@ -225,7 +257,7 @@ export class FakeFsGithub extends FakeFs {
    * path=&sha=&per_page=1` gives `[{ commit: { committer: { date } } }]`.
    */
   private async lastCommitTime(path: string) {
-    const list = await this.call(
+    const list = await this.call<GithubCommitListItem[]>(
       'GET',
       `/commits?sha=${encodeURIComponent(this.config.branch)}&path=${encodeURIComponent(`${this.prefix}${path}`)}&per_page=1`,
     )
@@ -343,12 +375,12 @@ export class FakeFsGithub extends FakeFs {
       throw Error(`GitHub: ${key} is over 100 MB`)
     }
     await this.ensureLoaded()
-    const blob = await this.call('POST', '/git/blobs', {
+    const blob = await this.call<GithubBlob>('POST', '/git/blobs', {
       content: toBase64(content),
       encoding: 'base64',
     })
     this.staged.set(key, {
-      sha: blob.sha as string,
+      sha: blob.sha,
       mtime,
       size: content.byteLength,
     })
@@ -432,7 +464,7 @@ export class FakeFsGithub extends FakeFs {
     times: Record<string, TimeEntry>,
   ) {
     const timesBytes = new TextEncoder().encode(JSON.stringify(times))
-    const timesBlob = await this.call('POST', '/git/blobs', {
+    const timesBlob = await this.call<GithubBlob>('POST', '/git/blobs', {
       content: toBase64(
         timesBytes.buffer.slice(
           timesBytes.byteOffset,
@@ -441,7 +473,12 @@ export class FakeFsGithub extends FakeFs {
       ),
       encoding: 'base64',
     })
-    const entries = [...this.staged].map(([key, s]) => ({
+    const entries: {
+      path: string
+      mode: string
+      type: string
+      sha: string | null
+    }[] = [...this.staged].map(([key, s]) => ({
       path: `${this.prefix}${key}`,
       mode: '100644',
       type: 'blob',
@@ -454,14 +491,14 @@ export class FakeFsGithub extends FakeFs {
       type: 'blob',
       sha: timesBlob.sha,
     })
-    const tree = await this.call('POST', '/git/trees', {
+    const tree = await this.call<GithubTree>('POST', '/git/trees', {
       base_tree: baseTree,
       tree: entries,
     })
     const changes = [...this.staged.keys()].filter(
       (k) => !k.startsWith(OWN_FOLDER),
     ).length
-    const commit = await this.call('POST', '/git/commits', {
+    const commit = await this.call<GithubCommit>('POST', '/git/commits', {
       message:
         changes === 0
           ? `Record file times from ${this.device}`

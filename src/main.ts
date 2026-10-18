@@ -456,7 +456,7 @@ export default class RemotelySavePlugin extends Plugin {
         runCallbacks: {
           notifyFunc,
           errNotifyFunc,
-          ribboonFunc,
+          ribbonFunc: ribboonFunc,
           statusBarFunc,
           callbackSyncProcess,
           callbackConflictCopy,

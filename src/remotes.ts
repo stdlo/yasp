@@ -12,6 +12,13 @@ export const LEGACY_PROFILE_ID = 'dropbox-default-1'
 export const profileIdOf = (remote: RemoteConfig) => `remote-${remote.id}`
 
 /**
+ * The settings' route table, an empty one when there is none (what
+ * `refusedSettings()` reads too: such a setup is refused before it runs).
+ */
+export const routeTableOf = (settings: RemotelySavePluginSettings) =>
+  settings.routes ?? { routes: [] }
+
+/**
  * Gives a single-remote setup its list: one remote `dropbox`, with every
  * per-remote setting left to fall back to the top-level one, and the table
  * `default → dropbox`, so it syncs exactly as before. Returns whether it
