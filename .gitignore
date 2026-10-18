@@ -1,4 +1,4 @@
-# Changed for Remotely Save Lite (2026): the lock file, the tool configs, and tmp/
+# Changed for Yet Another Sync Plugin (2026): the lock file, the tool configs, and tmp/
 # Intellij
 *.iml
 .idea

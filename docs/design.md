@@ -1,6 +1,6 @@
 # Design: several remotes at once
 
-How Remotely Save Lite syncs one vault with more than one remote at a time. This is the spec the routing was built
+How Yet Another Sync Plugin syncs one vault with more than one remote at a time. This is the spec the routing was built
 from, kept true to the code; "Where the build differs" at the end lists each place the build settled something the
 first draft left open or changed it, and why.
 
@@ -40,7 +40,7 @@ remote ("Dropbox: everything except `work`. GitHub: only `work`."), generated fr
   matches `work/a.md`, not `workshop/a.md`), case-sensitive as the vault is. No regular expressions in routes.
 - Root files go to the default.
 - **Two parts, stored in two places.** *Ownership* (which folder belongs to which remote, by the remote's name) is
-  shared: each remote keeps a small routes file (`.remotely-save-lite/routes.json` on that remote, through its
+  shared: each remote keeps a small routes file (`.yasp/routes.json` on that remote, through its
   encryption when it has a password) listing the folders it owns and when the table that wrote it changed, written
   when it differs from this device's. *Per device:* which remotes this device uses, their credentials, enabled flags,
   and the default row (a work laptop holding only `work` sets `default → local only`). At the start of each sync a
@@ -159,7 +159,7 @@ never logged.
   Conflict merge bases are cleared too, since the base the run stored is of a copy the remote never got: a later
   conflict on one of them makes a conflict copy rather than merging from it.
 - **Times:** git keeps no file times, and the engine compares them. The remote keeps
-  `.remotely-save-lite/times.json` (path → modified time, size, blob sha) in each commit, merged by path with the
+  `.yasp/times.json` (path → modified time, size, blob sha) in each commit, merged by path with the
   head's copy on a moved branch (never counted as an overlap). A file whose blob sha doesn't match it (edited on
   github.com) gets the time of the last commit touching that path (one request each, rare), and a notice says so.
   Those times are written to the times file by the run's commit, or by a commit of their own ("Record file times

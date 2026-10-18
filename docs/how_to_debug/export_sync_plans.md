@@ -20,7 +20,7 @@ You should at least sync once, so that at least one sync plan is generated and s
 
 ### Export To The File
 
-Go to the plugin settings, scroll down to the section "Debug" -> "export sync plans", and click the button "Export". \*\*It would generate a new folder `_debug_remotely_save_lite/` in your vault, and generate a file `sync_plans_hist_exported_on_{a_timestamp},md.` inside that folder.
+Go to the plugin settings, scroll down to the section "Debug" -> "export sync plans", and click the button "Export". \*\*It would generate a new folder `_debug_yasp/` in your vault, and generate a file `sync_plans_hist_exported_on_{a_timestamp},md.` inside that folder.
 
 ## How To Read The Plans
 

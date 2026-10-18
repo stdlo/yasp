@@ -21,7 +21,7 @@ number.
 - [ ] 1.1 With only Dropbox set up and no routes, sync. Everything lands in Dropbox as it did before the routing
   existed, and the status bar reads as it always has, with no per-remote marks.
 - [ ] 1.2 Edit `personal/a.md`, sync: one upload, nothing else.
-- [ ] 1.3 Search the console output for `.remotely-save-lite/routes.json`: with one remote and no routes, none is
+- [ ] 1.3 Search the console output for `.yasp/routes.json`: with one remote and no routes, none is
   written to Dropbox.
 
 ## 2. Add GitHub
@@ -44,7 +44,7 @@ number.
 - [ ] 3.2 Try a second `work` row and a route with no folder: each is refused with its reason and nothing saves.
   "Remove" on GitHub is refused while it owns `work`.
 - [ ] 3.3 Switch GitHub on and sync. On github.com: one new commit, "Sync from <vault>, <n> changes", holding
-  `work/c.md`, `work/d.md`, `.remotely-save-lite/times.json`, and `.remotely-save-lite/routes.json`, and no other
+  `work/c.md`, `work/d.md`, `.yasp/times.json`, and `.yasp/routes.json`, and no other
   note. [Blobs: `POST git/blobs` gives `sha`. The tree: `POST git/trees` with `base_tree` and `tree[]` entries. The
   commit: `POST git/commits` with `parents`. The branch: `PATCH git/refs/heads/main` with `force: false`.]
 - [ ] 3.4 Dropbox no longer holds `work` (deleted at 3.1) and still holds everything else. The status bar shows `Dropbox ✓ · GitHub ✓`; clicking it shows each remote's last run.

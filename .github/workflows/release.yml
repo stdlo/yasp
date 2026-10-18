@@ -1,4 +1,4 @@
-# Changed for Remotely Save Lite (2026): only the Dropbox app key secret; Node 24, npm ci, and no Git LFS steps
+# Changed for Yet Another Sync Plugin (2026): only the Dropbox app key secret; Node 24, npm ci, and no Git LFS steps
 # modified from https://github.com/argenos/nldates-obsidian/blob/master/.github/workflows/release.yml
 # which is released under MIT License
 

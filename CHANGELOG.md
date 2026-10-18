@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
+The first release of Yet Another Sync Plugin, 0.6.0, a free fork of Remotely Save
 0.5.25.
 
 ### Added
@@ -56,7 +56,7 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
   Obsidian's `requestUrl`: one listing of the branch head's tree, every
   write in a run staged as a blob and committed once at its end, a moved
   branch rebuilt with only the paths changed there dropped, file times kept
-  in `.remotely-save-lite/times.json` (a file edited on github.com gets its
+  in `.yasp/times.json` (a file edited on github.com gets its
   last commit's time once, recorded by a commit of its own when need be), the
   loaded tree reused while the head holds, and a routed folder renamed in one
   commit. Encryption on a GitHub remote is refused for now.
@@ -93,9 +93,9 @@ The first release of Remotely Save Lite, 0.6.0, a free fork of Remotely Save
 - The settings export (QR code and URI) leaves out the list of remotes (their
   tokens and encryption passwords), the routes, and the pending renames, all
   per-device state; its type admits `basic_and_advanced` and `dropbox` only.
-- The plugin id is `remotely-save-lite`, so it installs beside Remotely Save
+- The plugin id is `yasp`, so it installs beside Remotely Save
   with its own settings, local database, protocol actions, and Dropbox
-  redirect (`obsidian://remotely-save-lite-cb-dropbox`).
+  redirect (`obsidian://yasp-cb-dropbox`).
 - The sync engine is restored from upstream's Apache-2.0 history, before it
   moved into a source-available folder. Saved settings it can't honour fall
   back: an unknown conflict choice to Smart Conflict, and the "and delete"

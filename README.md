@@ -1,4 +1,4 @@
-# Remotely Save Lite
+# Yet Another Sync Plugin
 
 **ALWAYS back up your vault before using this plugin.** A sync plugin moves
 and deletes files on your behalf; a bug, a clock that's wrong, or a setting you
@@ -6,7 +6,7 @@ didn't mean can lose notes.
 
 ## What this is
 
-Remotely Save Lite is a free fork of
+Yet Another Sync Plugin is a free fork of
 [Remotely Save](https://github.com/remotely-save/remotely-save) 0.5.25, an
 unofficial plugin that syncs an Obsidian vault with a cloud service. It keeps
 the free, Apache-2.0 plugin going with Dropbox, and adds GitHub as a second
@@ -34,7 +34,7 @@ remote.
 - **Restored:** the sync engine, from upstream's Apache-2.0 history before it
   moved into `pro/`, without its paid hooks. Tests now pin the engine's
   decision for each file.
-- **Its own identity:** the plugin id is `remotely-save-lite`, so it installs
+- **Its own identity:** the plugin id is `yasp`, so it installs
   beside Remotely Save with its own settings, local database, and Dropbox
   redirect. It doesn't share upstream's Dropbox app either (see building,
   below), so it starts from a fresh folder.
@@ -47,9 +47,9 @@ changed at its top. The whole repository is Apache-2.0 ([`LICENSE`](./LICENSE)).
 The plugin isn't in Obsidian's community list. Either:
 
 - Install it with [BRAT](https://github.com/TfTHacker/obsidian42-brat): add
-  `stdlo/remotely-save-lite`.
+  `stdlo/yasp`.
 - Or copy the three files from a release, `main.js`, `manifest.json`, and
-  `styles.css`, into `<your vault>/.obsidian/plugins/remotely-save-lite/`, then
+  `styles.css`, into `<your vault>/.obsidian/plugins/yasp/`, then
   enable the plugin in Obsidian's settings.
 
 A release built without a Dropbox app key can't connect to Dropbox; build your
@@ -63,7 +63,7 @@ The Dropbox app key is set at build time, never in the code.
    scoped access, "App folder" access, with the permissions in
    [the Dropbox notes](./docs/dropbox_review_material/README.md)
    (`account_info.read`, `files.content.read`, and `files.content.write`).
-2. Add `obsidian://remotely-save-lite-cb-dropbox` to the app's OAuth 2
+2. Add `obsidian://yasp-cb-dropbox` to the app's OAuth 2
    redirect URIs.
 3. Copy `.env.example.txt` to `.env` and put the app key after
    `DROPBOX_APP_KEY=`. `.env` is ignored by git.
@@ -111,7 +111,7 @@ reach two remotes, or a route names a remote that doesn't exist, isn't saved.
   renames it on its remote too. A routed folder that disappears while
   Obsidian wasn't watching (renamed in a file manager, say) holds that
   remote's sync and asks once what happened, rather than deleting anything.
-- Each remote keeps `.remotely-save-lite/routes.json`, the folders it owns, so
+- Each remote keeps `.yasp/routes.json`, the folders it owns, so
   another device sees a route change made here. A folder that another device
   removed from the table stops syncing on this one too, until you route it
   again.
@@ -249,5 +249,5 @@ See [the doc](./docs/import_export_some_settings.md).
 ## Questions Or Bugs
 
 Open an issue on
-[this repository](https://github.com/stdlo/remotely-save-lite/issues). Please
+[this repository](https://github.com/stdlo/yasp/issues). Please
 don't take this fork's problems to upstream.
