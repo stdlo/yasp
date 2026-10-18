@@ -46,14 +46,16 @@ class MemTable {
 describe('Remotes: the migration from one remote', () => {
   it('makes one remote dropbox and default → dropbox', () => {
     const s = single()
-    assert.equal(migrateToRemotes(s), true)
+    migrateToRemotes(s)
     assert.equal(s.remotes?.length, 1)
     assert.equal(s.remotes?.[0].id, 'dropbox')
     assert.equal(profileIdOf(s.remotes![0]), 'remote-dropbox')
     assert.equal(routeOf(s.routes!, 'any/note.md'), 'dropbox')
     assert.deepEqual(refusedSettings(s), [])
     // a second load changes nothing
-    assert.equal(migrateToRemotes(s), false)
+    const once = JSON.stringify(s)
+    migrateToRemotes(s)
+    assert.equal(JSON.stringify(s), once)
   })
 
   it('gives the migrated remote exactly the settings it had', () => {
@@ -84,7 +86,9 @@ describe('Remotes: the migration from one remote', () => {
     // Revoke swaps in a blank config, a reconnect writes the new one
     s.dropbox = { accessToken: 'test-new', refreshToken: 'test-new-r' } as never
     const reloaded = JSON.parse(JSON.stringify(s)) as typeof s
-    assert.equal(migrateToRemotes(reloaded), false)
+    const saved = JSON.stringify(reloaded)
+    migrateToRemotes(reloaded)
+    assert.equal(JSON.stringify(reloaded), saved)
     const run = settingsForRemote(reloaded, reloaded.remotes![0])
     assert.equal(run.dropbox.accessToken, 'test-new')
     assert.equal(run.dropbox.refreshToken, 'test-new-r')

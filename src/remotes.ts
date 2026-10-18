@@ -21,9 +21,11 @@ export const routeTableOf = (settings: RemotelySavePluginSettings) =>
 /**
  * Gives a single-remote setup its list: one remote `dropbox`, with every
  * per-remote setting left to fall back to the top-level one, and the table
- * `default → dropbox`, so it syncs exactly as before. Returns whether it
- * changed anything; the caller then moves the records from
- * `LEGACY_PROFILE_ID` to the new profile.
+ * `default → dropbox`, so it syncs exactly as before. Idempotent: a setup
+ * that has its list is left alone. It doesn't say whether it changed
+ * anything, because the caller moves the records from `LEGACY_PROFILE_ID` to
+ * the migrated remote's profile on every load (a load cut short before the
+ * move finishes it on the next), and that move is idempotent too.
  */
 export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
   // the Dropbox credentials live in `settings.dropbox` only, where the OAuth
@@ -36,7 +38,7 @@ export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
     if (settings.routes === undefined) {
       settings.routes = { routes: [], defaultTarget: settings.remotes[0].id }
     }
-    return false
+    return
   }
   settings.remotes = [
     {
@@ -48,7 +50,6 @@ export const migrateToRemotes = (settings: RemotelySavePluginSettings) => {
   ]
   settings.routes = { routes: [], defaultTarget: 'dropbox' }
   settings.routesUpdatedAt = 0
-  return true
 }
 
 /**

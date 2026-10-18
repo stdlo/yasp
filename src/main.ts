@@ -497,9 +497,6 @@ export default class RemotelySavePlugin extends Plugin {
 
     await this.loadSettings()
 
-    // MUST after loadSettings and before prepareDB
-    const profileID: string = this.getCurrProfileID()
-
     // lang should be load early, but after settings
     this.i18n = new I18n(this.settings.lang!, async (lang: LangTypeAndAuto) => {
       this.settings.lang = lang
@@ -526,7 +523,8 @@ export default class RemotelySavePlugin extends Plugin {
       await this.prepareDBAndVaultRandomID(
         vaultBasePath,
         vaultRandomIDFromOldConfigFile,
-        profileID,
+        // the single-remote setup's profile; the records move on below
+        LEGACY_PROFILE_ID,
       )
     } catch (err: any) {
       new Notice(
@@ -972,17 +970,6 @@ export default class RemotelySavePlugin extends Plugin {
       await this.saveData(normalConfigToMessy(this.settings))
     } else {
       await this.saveData(this.settings)
-    }
-  }
-
-  /**
-   * After 202403 the data should be of profile based.
-   */
-  getCurrProfileID() {
-    if (this.settings.serviceType !== undefined) {
-      return `${this.settings.serviceType}-default-1`
-    } else {
-      throw Error('unknown serviceType in the setting!')
     }
   }
 
